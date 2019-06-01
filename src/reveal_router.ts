@@ -4,7 +4,9 @@ import fs from "fs";
 import express, { Request, Response, Express } from "express";
 
 import { ArgsParser } from "./args_parser";
+import { HTMLCodeModel } from "./html_code";
 import { MDIndexModel } from "./index_model";
+import { RevealjsHTMLModel } from "./reveal_model";
 
 import { md_extname, html_extname } from "./utils";
 
@@ -65,24 +67,20 @@ export class RevealRouter {
     });
 
     app.get(this.sub_directory + ":label" + html_extname, (req: Request, res: Response) => {
-      const md_path = req.params.label + md_extname;
-      const md_diskpath = path.join(this.resource_directory, md_path);
+      const label = req.params.label;
 
       try {
-        if (! fs.statSync(md_diskpath).isFile()) {throw Error("target is not regular file")}
-      } catch (err) {
-        console.error(err);
-        res.status(404).send("404: not found.");
-        return;
-      }
-
-      try {
-        res.render("./md.ejs", { md_path });
-      } catch (err) {
+        const model = RevealjsHTMLModel.from(this.resource_directory, label);
+        if (model instanceof HTMLCodeModel) {
+          res.status(model.code).send(model.message);
+          return;
+        }
+        res.render("./md.ejs", model);
+      } catch(err) {
         console.error(err);
         res.status(503).send("503: internal server error.");
         return;
-      }
+      };
     });
   }
 }
