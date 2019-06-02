@@ -6,7 +6,7 @@ import express, { Request, Response, Express } from "express";
 import { ArgsParser } from "./args_parser";
 import { HTMLCodeModel } from "./html_code";
 import { MDIndexModel } from "./index_model";
-import { RevealjsHTMLModel } from "./reveal_model";
+import { RevealjsHTMLModel, RevealjsMarkdownModel } from "./reveal_model";
 
 import { md_extname, html_extname } from "./utils";
 
@@ -58,14 +58,20 @@ export class RevealRouter {
     app.get(this.sub_directory + ":label" + md_extname, (req: Request, res: Response) => {
       const label = req.params.label;
       const referer = req.header('Referer');
-      const is_valid_referer = typeof referer === "string"
-        && referer.slice(0, -(html_extname.length)).slice(-(label.length)) === label;
-      if (! is_valid_referer) {res.status(503).send("503: internal server error."); return}
 
-      const md_path = req.params.label + md_extname;
-      const md_diskpath = path.join(this.resource_directory, md_path);
+      const data = {
+        resource_path: this.resource_directory,
+        label,
+        referer,
+      };
 
-      res.sendFile(path.join(process.cwd(), md_diskpath));
+      const model = RevealjsMarkdownModel.from(data);
+      if (model instanceof HTMLCodeModel) {
+        res.status(model.code).send(model.message);
+        return;
+      }
+
+      res.sendFile(model.md_diskpath);
     });
 
     app.get(this.sub_directory + ":label" + html_extname, (req: Request, res: Response) => {
@@ -76,6 +82,7 @@ export class RevealRouter {
           config_path: this.config_path,
           resource_path: this.resource_directory,
           label,
+          query: req.query,
         };
         const model = RevealjsHTMLModel.from(data);
 

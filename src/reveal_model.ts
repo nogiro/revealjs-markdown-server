@@ -29,19 +29,20 @@ interface RevealjsHTMLModelParameters {
   config_path: string;
   resource_path: string;
   label: string;
+  query: object;
 };
 
 export class RevealjsHTMLModel {
-  static from({config_path, resource_path, label}: RevealjsHTMLModelParameters): RevealjsHTMLModel | HTMLCodeModel {
-    const md_path: string = label + md_extname;
-    const md_file: string = path.join(resource_path, md_path);
+  static from(params: RevealjsHTMLModelParameters): RevealjsHTMLModel | HTMLCodeModel {
+    const md_path: string = params.label + md_extname;
+    const md_file: string = path.join(params.resource_path, md_path);
     if (! fs.statSync(md_file).isFile()) {
       return HTMLCodeModel.from(404);
     }
 
     return new RevealjsHTMLModel({
       md_path,
-      ...generate_parameters({config_path, resource_path, label})
+      ...generate_parameters(params)
     });
   }
 
@@ -53,7 +54,28 @@ export class RevealjsHTMLModel {
   get options() {return this.parameters.options}
 }
 
-function generate_parameters({config_path, resource_path, label}: RevealjsHTMLModelParameters): RevealParameters {
+export class RevealjsMarkdownModel {
+  static from({label, referer, resource_path}: {label: string, referer?: string, resource_path: string}): RevealjsMarkdownModel | HTMLCodeModel {
+
+    if (typeof referer !== "string") {return HTMLCodeModel.from(503)}
+
+    const delimiter_pos = [referer.indexOf('#'), referer.indexOf('?')]
+      .filter(a => a !== -1)
+      .reduce((a, b) => Math.min(a, b) , referer.length);
+    const referer_label = referer
+      .slice(0, delimiter_pos)
+      .slice(0, -(html_extname.length))
+      .slice(-(label.length));
+    if (referer_label !== label) {return HTMLCodeModel.from(503)}
+
+    return new RevealjsMarkdownModel(path.join(process.cwd(), resource_path, label + md_extname));
+  }
+
+  private constructor(private _md_diskpath: string) {}
+  get md_diskpath() {return this._md_diskpath}
+}
+
+function generate_parameters({config_path, resource_path, label, query}: RevealjsHTMLModelParameters): RevealParameters {
   const ret = {...default_parameters};
   const yaml_file: string = path.join(resource_path, label + yaml_extname);
 
@@ -67,23 +89,29 @@ function generate_parameters({config_path, resource_path, label}: RevealjsHTMLMo
   } catch (err) {
     console.error("local config file error.", err.message);
   }
+
+  load_parameters(ret, query);
+
   return ret;
 }
 
-function load_file_parameters(ret: RevealParameters, config_path: string) {
+function load_file_parameters(ret: RevealParameters, config_path: string): void {
   const config_parameters = yaml.parse(fs.readFileSync(config_path, 'utf8'));
+  load_parameters(ret, config_parameters);
+}
 
-  if (typeof config_parameters.theme === "string") {
-    ret.theme = config_parameters.theme;
+function load_parameters(ret: RevealParameters, params: any): void {
+  if (typeof params.theme === "string") {
+    ret.theme = params.theme;
   }
-  if (typeof config_parameters.separator === "string") {
-    ret.separator = config_parameters.separator;
+  if (typeof params.separator === "string") {
+    ret.separator = params.separator;
   }
-  if (typeof config_parameters["separator-vertical"] === "string") {
-    ret["separator-vertical"] = config_parameters["separator-vertical"];
+  if (typeof params["separator-vertical"] === "string") {
+    ret["separator-vertical"] = params["separator-vertical"];
   }
-  if (typeof config_parameters.options === "object") {
-    ret.options = config_parameters.options;
+  if (typeof params.options === "object") {
+    ret.options = params.options;
   }
 }
 

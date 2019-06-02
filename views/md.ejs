@@ -38,7 +38,7 @@
 
 		<script src="js/reveal.js"></script>
 		<script>
-			var options = JSON.parse("<%- JSON.stringify(parameters.options) %>");
+			var options = <%- JSON.stringify(parameters.options) %>;
 			options.dependencies = [
 				// Interpret Markdown in <section> elements
 				{ src: 'plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
