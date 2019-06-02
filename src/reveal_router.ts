@@ -13,11 +13,13 @@ import { md_extname, html_extname } from "./utils";
 export class RevealRouter {
   private sub_directory: string;
   private resource_directory: string;
+  private config_path: string;
 
   constructor(args: ArgsParser) {
     let sub_directory = "/" + args.sub_directory + "/";
     this.sub_directory = sub_directory.replace(/^\/*/, "/").replace(/\/*$/, "/");
     this.resource_directory = args.resource_directory;
+    this.config_path = args.config;
   }
 
   route(app: Express) : void {
@@ -70,7 +72,13 @@ export class RevealRouter {
       const label = req.params.label;
 
       try {
-        const model = RevealjsHTMLModel.from(this.resource_directory, label);
+        const data = {
+          config_path: this.config_path,
+          resource_path: this.resource_directory,
+          label,
+        };
+        const model = RevealjsHTMLModel.from(data);
+
         if (model instanceof HTMLCodeModel) {
           res.status(model.code).send(model.message);
           return;
