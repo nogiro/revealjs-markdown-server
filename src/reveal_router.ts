@@ -84,13 +84,14 @@ export class RevealRouter {
           label,
           query: req.query,
         };
-        const model = RevealjsHTMLModel.from(data);
-
-        if (model instanceof HTMLCodeModel) {
-          res.status(model.code).send(model.message);
-          return;
-        }
-        res.render("./md.ejs", model);
+        RevealjsHTMLModel.from(data)
+          .then(model => {
+            if (model instanceof HTMLCodeModel) {
+              res.status(model.code).send(model.message);
+              return;
+            }
+            res.render("./md.ejs", model);
+          });
       } catch(err) {
         console.error(err);
         res.status(503).send("503: internal server error.");
