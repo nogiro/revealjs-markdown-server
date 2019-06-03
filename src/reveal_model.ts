@@ -5,7 +5,7 @@ import readline from "readline";
 import yaml from "yaml";
 import validateCss from "css-validator";
 
-import { recursive_readdir, md_extname, html_extname, yaml_extname } from "./utils";
+import { recursive_readdir, md_extname, yaml_extname, label_key, md_path } from "./utils";
 import { HTMLCodeModel } from "./html_code";
 
 export interface RevealParameters {
@@ -36,8 +36,11 @@ interface RevealjsHTMLModelParameters {
 
 export class RevealjsHTMLModel {
   static from(params: RevealjsHTMLModelParameters): Promise<RevealjsHTMLModel | HTMLCodeModel> {
-    const md_path: string = params.label + md_extname;
-    const md_file: string = path.join(params.resource_path, md_path);
+    if (typeof params.label === "undefined") {
+      return Promise.resolve(HTMLCodeModel.from(404));
+    }
+
+    const md_file: string = path.join(params.resource_path, params.label + md_extname);
     if (! fs.statSync(md_file).isFile()) {
       return Promise.resolve(HTMLCodeModel.from(404));
     }
@@ -45,7 +48,7 @@ export class RevealjsHTMLModel {
     return generate_parameters(params)
       .then(parameters => {
         return new RevealjsHTMLModel({
-          md_path,
+          md_path: `${md_path}?${label_key}=${params.label}`,
           ...parameters
         });
     });
@@ -59,16 +62,12 @@ export class RevealjsHTMLModel {
 export class RevealjsMarkdownModel {
   static from({label, referer, resource_path}: {label: string, referer?: string, resource_path: string}): RevealjsMarkdownModel | HTMLCodeModel {
 
-    if (typeof referer !== "string") {return HTMLCodeModel.from(503)}
-
-    const delimiter_pos = [referer.indexOf('#'), referer.indexOf('?')]
-      .filter(a => a !== -1)
-      .reduce((a, b) => Math.min(a, b) , referer.length);
-    const referer_label = referer
-      .slice(0, delimiter_pos)
-      .slice(0, -(html_extname.length))
-      .slice(-(label.length));
-    if (referer_label !== label) {return HTMLCodeModel.from(503)}
+    try {
+      if (!referer) {throw ""}
+      const referer_url = new URL(referer);
+      const referer_label = referer_url.searchParams.get(label_key);
+      if (referer_label !== label) {throw ""}
+    } catch (err) {return HTMLCodeModel.from(503)}
 
     return new RevealjsMarkdownModel(path.join(process.cwd(), resource_path, label + md_extname));
   }

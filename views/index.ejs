@@ -16,8 +16,8 @@
 <body>
   <% if (list instanceof Array && list.length !== 0) { %>
   <ul>
-    <% list.forEach(function(md) { %>
-    <li><a href="<%= md.path %>"><%= md.title %></a></li>
+    <% list.forEach(function(index_item) { %>
+    <li><a href="<%= index_item.path %>"><%= index_item.title %></a></li>
     <% }) %>
   </ul>
   <% } else { %>

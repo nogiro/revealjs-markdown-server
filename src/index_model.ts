@@ -1,7 +1,7 @@
 import fs from "fs";
 import readline from "readline";
 
-import { recursive_readdir, md_extname, html_extname } from "./utils";
+import { recursive_readdir, md_extname, view_path, label_key } from "./utils";
 
 const search_max = 10;
 const title_regexp = /^#+ /;
@@ -26,10 +26,11 @@ function extract_title(pathname : string): Promise<string> {
 
 class MDIndexItem {
   static from(resource_dirname: string, filename: string): Promise<MDIndexItem> {
-    const path = filename.slice(resource_dirname.length + 1).slice(0, -(md_extname.length)) + html_extname;
+    const label = filename.slice(resource_dirname.length + 1).slice(0, -(md_extname.length));
+    const path = `${view_path}?${label_key}=${label}`;
     return extract_title(filename)
-      .then(title => ({ path, title: path + ": " + title }))
-      .catch(() => ({ path, title: path }))
+      .then(title => ({ path, title: label + ": " + title }))
+      .catch(() => ({ path, title: label }))
       .then(({ path, title }) => new MDIndexItem(path, title));
   }
 

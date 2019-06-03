@@ -8,7 +8,7 @@ import { HTMLCodeModel } from "./html_code";
 import { MDIndexModel } from "./index_model";
 import { RevealjsHTMLModel, RevealjsMarkdownModel } from "./reveal_model";
 
-import { md_extname, html_extname } from "./utils";
+import { view_path, label_key, md_path } from "./utils";
 
 export class RevealRouter {
   private sub_directory: string;
@@ -55,8 +55,8 @@ export class RevealRouter {
   }
 
   private register_page(app: Express) : void {
-    app.get(this.sub_directory + ":label" + md_extname, (req: Request, res: Response) => {
-      const label = req.params.label;
+    app.get(this.sub_directory + md_path, (req: Request, res: Response) => {
+      const label = req.query[label_key];
       const referer = req.header('Referer');
 
       const data = {
@@ -74,8 +74,8 @@ export class RevealRouter {
       res.sendFile(model.md_diskpath);
     });
 
-    app.get(this.sub_directory + ":label" + html_extname, (req: Request, res: Response) => {
-      const label = req.params.label;
+    app.get(this.sub_directory + view_path, (req: Request, res: Response) => {
+      const label = req.query[label_key];
 
       try {
         const data = {
