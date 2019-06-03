@@ -3,6 +3,7 @@ import path from "path";
 import readline from "readline";
 
 import yaml from "yaml";
+import validateCss from "css-validator";
 
 import { recursive_readdir, md_extname, html_extname, yaml_extname } from "./utils";
 import { HTMLCodeModel } from "./html_code";
@@ -12,6 +13,7 @@ export interface RevealParameters {
   separator: string;
   "separator-vertical": string;
   options: object;
+  "custom-css"?: string;
 }
 
 interface RevealHTMLParameters extends RevealParameters {
@@ -33,25 +35,25 @@ interface RevealjsHTMLModelParameters {
 };
 
 export class RevealjsHTMLModel {
-  static from(params: RevealjsHTMLModelParameters): RevealjsHTMLModel | HTMLCodeModel {
+  static from(params: RevealjsHTMLModelParameters): Promise<RevealjsHTMLModel | HTMLCodeModel> {
     const md_path: string = params.label + md_extname;
     const md_file: string = path.join(params.resource_path, md_path);
     if (! fs.statSync(md_file).isFile()) {
-      return HTMLCodeModel.from(404);
+      return Promise.resolve(HTMLCodeModel.from(404));
     }
 
-    return new RevealjsHTMLModel({
-      md_path,
-      ...generate_parameters(params)
+    return generate_parameters(params)
+      .then(parameters => {
+        return new RevealjsHTMLModel({
+          md_path,
+          ...parameters
+        });
     });
   }
 
-  private constructor(private parameters: RevealHTMLParameters) {}
+  private constructor(private _parameters: RevealHTMLParameters) {}
 
-  get md_path() {return this.parameters.md_path}
-  get separator() {return this.parameters.separator}
-  get ["separator-vertical"]() {return this.parameters["separator-vertical"]}
-  get options() {return this.parameters.options}
+  get parameters() {return this._parameters}
 }
 
 export class RevealjsMarkdownModel {
@@ -75,32 +77,32 @@ export class RevealjsMarkdownModel {
   get md_diskpath() {return this._md_diskpath}
 }
 
-function generate_parameters({config_path, resource_path, label, query}: RevealjsHTMLModelParameters): RevealParameters {
-  const ret = {...default_parameters};
+async function generate_parameters({config_path, resource_path, label, query}: RevealjsHTMLModelParameters): Promise<RevealParameters> {
+  let ret = {...default_parameters};
   const yaml_file: string = path.join(resource_path, label + yaml_extname);
 
   try {
-    load_file_parameters(ret, config_path);
+    ret = await load_file_parameters(ret, config_path);
   } catch (err) {
     console.error("global config file error.", err.message);
   }
   try {
-    load_file_parameters(ret, yaml_file);
+    ret = await load_file_parameters(ret, yaml_file);
   } catch (err) {
     console.error("local config file error.", err.message);
   }
 
-  load_parameters(ret, query);
-
+  ret = await load_parameters(ret, query);
   return ret;
 }
 
-function load_file_parameters(ret: RevealParameters, config_path: string): void {
+function load_file_parameters(ret: RevealParameters, config_path: string): Promise<RevealParameters> {
   const config_parameters = yaml.parse(fs.readFileSync(config_path, 'utf8'));
-  load_parameters(ret, config_parameters);
+  return load_parameters(ret, config_parameters);
 }
 
-function load_parameters(ret: RevealParameters, params: any): void {
+function load_parameters(default_values: RevealParameters, params: any): Promise<RevealParameters> {
+  let ret = {...default_values};
   if (typeof params.theme === "string") {
     ret.theme = params.theme;
   }
@@ -113,5 +115,16 @@ function load_parameters(ret: RevealParameters, params: any): void {
   if (typeof params.options === "object") {
     ret.options = params.options;
   }
+  if (typeof params["custom-css"] === "string") {
+    return new Promise((res, rej) => {
+      validateCss({text: params["custom-css"]}, (err, data) => {
+        if (err) {rej(ret); return}
+        ret["custom-css"] = params["custom-css"];
+        res(ret);
+      });
+    });
+  }
+
+  return Promise.resolve(ret);
 }
 
