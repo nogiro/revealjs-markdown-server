@@ -22,6 +22,7 @@ export async function recursive_readdir(pathname: string) : Promise<string[]> {
 
 export const md_extname = ".md";
 export const yaml_extname = ".yaml";
+export const css_extname = ".css";
 
 export const view_path = "view";
 export const label_key = "label";

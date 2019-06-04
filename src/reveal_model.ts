@@ -5,7 +5,15 @@ import readline from "readline";
 import yaml from "yaml";
 import css from "css";
 
-import { recursive_readdir, md_extname, yaml_extname, label_key, md_path } from "./utils";
+import {
+  recursive_readdir,
+  md_extname,
+  yaml_extname,
+  css_extname,
+  label_key,
+  md_path,
+} from "./utils";
+
 import { HTMLCodeModel } from "./html_code";
 
 export interface RevealParameters {
@@ -79,28 +87,38 @@ function generate_parameters({config_path, resource_path, label, query}: Revealj
   const yaml_file: string = path.join(resource_path, label + yaml_extname);
 
   try {
-    ret = load_file_parameters(ret, config_path);
+    ret = load_file_parameters(label, ret, config_path);
   } catch (err) {
-    console.error("global config file error.", err.message);
+    console.error(`${label}: global config file error.`, err.message);
   }
   try {
-    ret = load_file_parameters(ret, yaml_file);
+    ret = load_file_parameters(label, ret, yaml_file);
   } catch (err) {
-    console.error("local config file error.", err.message);
+    console.error(`${label}: local config file error.`, err.message);
   }
 
-  return load_parameters(ret, query);
+  return load_parameters(label, ret, query);
 }
 
-function load_file_parameters(ret: RevealParameters, config_path: string): RevealParameters {
+function load_file_parameters(label: string, ret: RevealParameters, config_path: string): RevealParameters {
   const config_parameters = yaml.parse(fs.readFileSync(config_path, 'utf8'));
-  return load_parameters(ret, config_parameters);
+  return load_parameters(label, ret, config_parameters);
 }
 
-function load_parameters(default_values: RevealParameters, params: any): RevealParameters {
+const module_revealjs_path = path.join("node_modules", "reveal.js");
+const module_revealjs_css_theme_path = path.join(module_revealjs_path, "css", "theme");
+
+function load_parameters(label: string, default_values: RevealParameters, params: any): RevealParameters {
   let ret = {...default_values};
   if (typeof params.theme === "string") {
-    ret.theme = params.theme;
+    const theme_css_path = path.join(module_revealjs_css_theme_path, params.theme + css_extname);
+    try {
+      if (fs.statSync(theme_css_path).isFile()) {
+        ret.theme = params.theme;
+      }
+    } catch (err) {
+      console.error(`${label}: theme file stat error.`, err.message);
+    }
   }
   if (typeof params.separator === "string") {
     ret.separator = params.separator;
@@ -115,7 +133,7 @@ function load_parameters(default_values: RevealParameters, params: any): RevealP
     try {
       ret["custom-css"] = css.stringify(css.parse(params["custom-css"]));
     } catch (err) {
-      console.error("css error.", err.message);
+      console.error(`${label}: css error.`, err.message);
     }
   }
 
