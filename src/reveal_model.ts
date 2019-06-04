@@ -3,7 +3,7 @@ import path from "path";
 import readline from "readline";
 
 import yaml from "yaml";
-import validateCss from "css-validator";
+import css from "css";
 
 import { recursive_readdir, md_extname, yaml_extname, label_key, md_path } from "./utils";
 import { HTMLCodeModel } from "./html_code";
@@ -35,22 +35,20 @@ interface RevealjsHTMLModelParameters {
 };
 
 export class RevealjsHTMLModel {
-  static from(params: RevealjsHTMLModelParameters): Promise<RevealjsHTMLModel | HTMLCodeModel> {
+  static from(params: RevealjsHTMLModelParameters): RevealjsHTMLModel | HTMLCodeModel {
     if (typeof params.label === "undefined") {
-      return Promise.resolve(HTMLCodeModel.from(404));
+      return HTMLCodeModel.from(404);
     }
 
     const md_file: string = path.join(params.resource_path, params.label + md_extname);
     if (! fs.statSync(md_file).isFile()) {
-      return Promise.resolve(HTMLCodeModel.from(404));
+      return HTMLCodeModel.from(404);
     }
 
-    return generate_parameters(params)
-      .then(parameters => {
-        return new RevealjsHTMLModel({
-          md_path: `${md_path}?${label_key}=${params.label}`,
-          ...parameters
-        });
+    const parameters = generate_parameters(params);
+    return new RevealjsHTMLModel({
+      md_path: `${md_path}?${label_key}=${params.label}`,
+      ...parameters
     });
   }
 
@@ -76,31 +74,30 @@ export class RevealjsMarkdownModel {
   get md_diskpath() {return this._md_diskpath}
 }
 
-async function generate_parameters({config_path, resource_path, label, query}: RevealjsHTMLModelParameters): Promise<RevealParameters> {
+function generate_parameters({config_path, resource_path, label, query}: RevealjsHTMLModelParameters): RevealParameters {
   let ret = {...default_parameters};
   const yaml_file: string = path.join(resource_path, label + yaml_extname);
 
   try {
-    ret = await load_file_parameters(ret, config_path);
+    ret = load_file_parameters(ret, config_path);
   } catch (err) {
     console.error("global config file error.", err.message);
   }
   try {
-    ret = await load_file_parameters(ret, yaml_file);
+    ret = load_file_parameters(ret, yaml_file);
   } catch (err) {
     console.error("local config file error.", err.message);
   }
 
-  ret = await load_parameters(ret, query);
-  return ret;
+  return load_parameters(ret, query);
 }
 
-function load_file_parameters(ret: RevealParameters, config_path: string): Promise<RevealParameters> {
+function load_file_parameters(ret: RevealParameters, config_path: string): RevealParameters {
   const config_parameters = yaml.parse(fs.readFileSync(config_path, 'utf8'));
   return load_parameters(ret, config_parameters);
 }
 
-function load_parameters(default_values: RevealParameters, params: any): Promise<RevealParameters> {
+function load_parameters(default_values: RevealParameters, params: any): RevealParameters {
   let ret = {...default_values};
   if (typeof params.theme === "string") {
     ret.theme = params.theme;
@@ -115,15 +112,13 @@ function load_parameters(default_values: RevealParameters, params: any): Promise
     ret.options = params.options;
   }
   if (typeof params["custom-css"] === "string") {
-    return new Promise((res, rej) => {
-      validateCss({text: params["custom-css"]}, (err, data) => {
-        if (err) {rej(ret); return}
-        ret["custom-css"] = params["custom-css"];
-        res(ret);
-      });
-    });
+    try {
+      ret["custom-css"] = css.stringify(css.parse(params["custom-css"]));
+    } catch (err) {
+      console.error("css error.", err.message);
+    }
   }
 
-  return Promise.resolve(ret);
+  return ret;
 }
 
