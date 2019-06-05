@@ -37,7 +37,7 @@ export class RevealRouter {
     ];
     
     revealjs_resources.forEach(resource => {
-      app.use(this.sub_directory + resource, express.static(path.join("node_modules", "reveal.js", resource)));
+      app.use(this.sub_directory + resource, express.static(path.join(__dirname, "..", "node_modules", "reveal.js", resource)));
     });
   }
 

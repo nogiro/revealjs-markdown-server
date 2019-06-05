@@ -48,7 +48,7 @@ export class RevealjsHTMLModel {
       return HTMLCodeModel.from(404);
     }
 
-    const md_file: string = path.join(params.resource_path, params.label + md_extname);
+    const md_file: string = path.join(process.cwd(), params.resource_path, params.label + md_extname);
     if (! fs.statSync(md_file).isFile()) {
       return HTMLCodeModel.from(404);
     }
@@ -84,7 +84,7 @@ export class RevealjsMarkdownModel {
 
 function generate_parameters({config_path, resource_path, label, query}: RevealjsHTMLModelParameters): RevealParameters {
   let ret = {...default_parameters};
-  const yaml_file: string = path.join(resource_path, label + yaml_extname);
+  const yaml_file: string = path.join(process.cwd(), resource_path, label + yaml_extname);
 
   try {
     ret = load_file_parameters(label, ret, config_path);
@@ -105,7 +105,7 @@ function load_file_parameters(label: string, ret: RevealParameters, config_path:
   return load_parameters(label, ret, config_parameters);
 }
 
-const module_revealjs_path = path.join("node_modules", "reveal.js");
+const module_revealjs_path = path.join(__dirname, "..", "node_modules", "reveal.js");
 const module_revealjs_css_theme_path = path.join(module_revealjs_path, "css", "theme");
 
 function load_parameters(label: string, default_values: RevealParameters, params: any): RevealParameters {
