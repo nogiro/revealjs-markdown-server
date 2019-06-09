@@ -56,8 +56,16 @@ export class RevealRouter {
 
     app.get(this.sub_directory + index_js, (req: Request, res: Response) => {
       const dir = path.join(__dirname, "..", "dist");
-      const index_js_name = fs.readdirSync(dir)
-        .find(a => (a.startsWith("front") && a.endsWith(".js")))
+      const index_js_list = fs.readdirSync(dir)
+        .filter(a => (a.startsWith("front") && a.endsWith(".js")))
+        .map(a => {
+          const filename = path.join(dir, a);
+          const mtime = fs.statSync(filename).mtime.getTime();
+          return { filename, mtime };
+        });
+      index_js_list.sort((a, b) => b.mtime - a.mtime);
+      const index_js_name = index_js_list[0];
+
       if (typeof index_js_name === "undefined") {
         console.error("js not found");
         const model = HTMLCodeModel.from(404);
@@ -65,7 +73,7 @@ export class RevealRouter {
         return;
       }
 
-      res.sendFile(path.join(dir, index_js_name));
+      res.sendFile(index_js_name.filename);
     });
   }
 
