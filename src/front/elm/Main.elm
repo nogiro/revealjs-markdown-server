@@ -5,29 +5,29 @@ import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick)
 
 main =
-  Browser.sandbox { init = init, update = update, view = view }
+  Browser.element { init = init, update = update, view = view, subscriptions = subscriptions }
 
 -- MODEL
 
 type alias Model = Int
 
-init : Model
-init =
-  0
+init : Int -> ( Model, Cmd msg )
+init flags =
+  ( flags , Cmd.none )
 
 
 -- UPDATE
 
 type Msg = Increment | Decrement
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Cmd msg )
 update msg model =
   case msg of
     Increment ->
-      model + 1
+      ( model + 1, Cmd.none )
 
     Decrement ->
-      model - 1
+      ( model - 1, Cmd.none )
 
 
 -- VIEW
@@ -39,4 +39,8 @@ view model =
     , div [] [ text (String.fromInt model) ]
     , button [ onClick Increment ] [ text "+" ]
     ]
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Sub.none
 
