@@ -1,8 +1,9 @@
 module Main exposing (main)
 
 import Browser
-import Html exposing (Html, button, div, text)
+import Html exposing (Html, text, div, a, ul, li)
 import Html.Events exposing (onClick)
+import Html.Attributes exposing (href)
 import Json.Decode
 
 main =
@@ -10,45 +11,57 @@ main =
 
 -- MODEL
 
+type alias IndexItem =
+  { path: String, title: String }
+
 type alias Model =
-  { init: Int }
+  List IndexItem
+
+indexItemDecoder =
+  Json.Decode.map2 IndexItem
+    (Json.Decode.field "path" Json.Decode.string)
+    (Json.Decode.field "title" Json.Decode.string)
 
 modelDecoder : Json.Decode.Decoder Model
 modelDecoder =
-  Json.Decode.map Model
-    (Json.Decode.field "init" Json.Decode.int)
+  Json.Decode.list indexItemDecoder
 
 init : String -> ( Model, Cmd msg )
 init flags =
   case (Json.Decode.decodeString modelDecoder flags) of
     Ok a ->
-      ( a , Cmd.none )
-
+      ( a, Cmd.none )
     Err _ ->
-      ( { init = 0 } , Cmd.none )
+      ( [], Cmd.none )
 
 -- UPDATE
 
-type Msg = Increment | Decrement
+type Msg = Null
 
 update : Msg -> Model -> ( Model, Cmd msg )
 update msg model =
-  case msg of
-    Increment ->
-      ({ init = model.init + 1 }, Cmd.none )
-
-    Decrement ->
-      ({ init = model.init - 1 }, Cmd.none )
-
+  ( model, Cmd.none )
 
 -- VIEW
 
 view : Model -> Html Msg
 view model =
   div []
-    [ button [ onClick Decrement ] [ text "-" ]
-    , div [] [ text (String.fromInt model.init) ]
-    , button [ onClick Increment ] [ text "+" ]
+    [ renderIndexList model
+    ]
+
+renderIndexList : List IndexItem -> Html msg
+renderIndexList lst =
+  case (List.length lst) of
+    0 ->
+      div [] [ text "no resources" ]
+    _ ->
+      ul [] (List.map (\l -> li [] [ renderIndexItem l ]) lst)
+
+renderIndexItem : IndexItem -> Html msg
+renderIndexItem item =
+  li []
+    [ a [ href item.path ] [ text item.title]
     ]
 
 subscriptions : Model -> Sub Msg

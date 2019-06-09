@@ -14,18 +14,9 @@
 </head>
 
 <body>
-  <% if (list instanceof Array && list.length !== 0) { %>
-  <ul>
-    <% list.forEach(function(index_item) { %>
-    <li><a href="<%= index_item.path %>"><%= index_item.title %></a></li>
-    <% }) %>
-  </ul>
-  <% } else { %>
-  <p>no sources</p>
-  <% } %>
   <div id="elm"></div>
   <script>
-    var flags = JSON.stringify({ init: 3 });
+    var flags = JSON.stringify(<%- JSON.stringify(list.map(function(a){return {path: a.path, title: a.title}})) %>);
   </script>
   <script src="<%= index_js %>"></script>
 </body>
