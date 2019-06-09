@@ -42,7 +42,7 @@ export class RevealRouter {
   }
 
   private register_index(app: Express) : void {
-    const index_js = "index.js";
+    const index_js = this.sub_directory + "index.js";
     app.get(this.sub_directory, (req: Request, res: Response) => {
       MDIndexModel.from(this.resource_directory)
         .then(model => {
@@ -54,7 +54,7 @@ export class RevealRouter {
         });
     });
 
-    app.get(this.sub_directory + index_js, (req: Request, res: Response) => {
+    app.get(index_js, (req: Request, res: Response) => {
       const dir = path.join(__dirname, "..", "dist");
       const index_js_list = fs.readdirSync(dir)
         .filter(a => (a.startsWith("front") && a.endsWith(".js")))
