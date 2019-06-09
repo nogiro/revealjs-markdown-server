@@ -42,15 +42,38 @@ export class RevealRouter {
   }
 
   private register_index(app: Express) : void {
+    const index_js = this.sub_directory + "index.js";
     app.get(this.sub_directory, (req: Request, res: Response) => {
       MDIndexModel.from(this.resource_directory)
         .then(model => {
-          res.render("./index.ejs", {list: model.list});
+          res.render("./index.ejs", {list: model.list, index_js});
         })
         .catch(err => {
           console.error(err);
           res.status(503).send("503: internal server error.");
         });
+    });
+
+    app.get(index_js, (req: Request, res: Response) => {
+      const dir = path.join(__dirname, "..", "dist");
+      const index_js_list = fs.readdirSync(dir)
+        .filter(a => (a.startsWith("front") && a.endsWith(".js")))
+        .map(a => {
+          const filename = path.join(dir, a);
+          const mtime = fs.statSync(filename).mtime.getTime();
+          return { filename, mtime };
+        });
+      index_js_list.sort((a, b) => b.mtime - a.mtime);
+      const index_js_name = index_js_list[0];
+
+      if (typeof index_js_name === "undefined") {
+        console.error("js not found");
+        const model = HTMLCodeModel.from(404);
+        res.status(model.code).send(model.message);
+        return;
+      }
+
+      res.sendFile(index_js_name.filename);
     });
   }
 

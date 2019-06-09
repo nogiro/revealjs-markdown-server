@@ -14,11 +14,13 @@
 </head>
 
 <body>
+  
+  <ul>
+    <li><a href="view?label=test">test: Slide 1.1</a></li>
+  </ul>
+  
   <div id="elm"></div>
-  <script>
-    var flags = JSON.stringify(<%- JSON.stringify(list.map(function(a){return {path: a.path, title: a.title}})) %>);
-  </script>
-  <script src="<%= index_js %>"></script>
+  <script src="index.js"></script>
 </body>
 </html>
 
