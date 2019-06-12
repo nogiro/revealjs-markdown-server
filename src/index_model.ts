@@ -1,27 +1,16 @@
 import fs from "fs";
 import readline from "readline";
 
-import { recursive_readdir, md_extname, view_path, label_key } from "./utils";
+import { md_extname, view_path, label_key, recursive_readdir, load_head_chunk_from_file } from "./utils";
 
-const search_max = 10;
-const title_regexp = /^#+ /;
+const title_regexp = /(^|\n)#+ ([^\n]*)/;
 
-function extract_title(pathname : string): Promise<string> {
-  const read_interface = readline.createInterface(fs.createReadStream(pathname));
-
-  return new Promise((res, rej) => {
-    let count = 0;
-    read_interface.on("line", (line : string) => {
-      ++count;
-      if (line.match(title_regexp)) {
-        read_interface.close();
-        res(line.replace(title_regexp, ""));
-      } else if (line.length !== 0 || count > search_max) {
-        read_interface.close();
-        rej();
-      }
-    });
-  });
+async function extract_title(pathname : string): Promise<string> {
+  const chunk_result = await load_head_chunk_from_file(pathname, title_regexp);
+  const matched = chunk_result.matched;
+  const title = matched[2];
+  if (typeof title === "undefined") {throw new Error()}
+  return title;
 }
 
 class MDIndexItem {

@@ -8,7 +8,7 @@ import { HTMLCodeModel } from "./html_code";
 import { MDIndexModel } from "./index_model";
 import { RevealjsHTMLModel, RevealjsMarkdownModel } from "./reveal_model";
 
-import { view_path, label_key, md_path } from "./utils";
+import { view_path, label_key, md_path, thumbnail_path } from "./utils";
 
 export class RevealRouter {
   private sub_directory: string;
