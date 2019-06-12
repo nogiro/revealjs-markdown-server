@@ -1,5 +1,15 @@
 import path from "path";
 import fs from "fs";
+import readline from "readline";
+
+export const md_extname = ".md";
+export const yaml_extname = ".yaml";
+export const css_extname = ".css";
+
+export const view_path = "view";
+export const label_key = "label";
+export const md_path = "md";
+export const thumbnail_path = "thumbnail";
 
 export async function recursive_readdir(pathname: string) : Promise<string[]> {
   const ret : string[] = [];
@@ -20,11 +30,33 @@ export async function recursive_readdir(pathname: string) : Promise<string[]> {
   return ret;
 }
 
-export const md_extname = ".md";
-export const yaml_extname = ".yaml";
-export const css_extname = ".css";
+export async function load_head_chunk_from_file(pathname : string, pattern: string | RegExp, num_load: number = 3, max: number = 10): Promise<{chunk: string; matched: RegExpMatchArray;}> {
+  const read_interface = readline.createInterface(fs.createReadStream(pathname));
 
-export const view_path = "view";
-export const label_key = "label";
-export const md_path = "md";
+  const loaded: Array<string> = [];
+
+  return new Promise((res, rej) => {
+    let finished = false;
+    read_interface.on("line", (line : string) => {
+      if (finished) {return}
+      loaded.push(line);
+      if ((loaded.length % num_load) !== 0) {return}
+
+      if (loaded.length > max) {
+        read_interface.close();
+        rej();
+        return;
+      }
+
+      const chunk = loaded.join("\n");
+      const matched = chunk.match(pattern);
+
+      if (matched === null) {return}
+      finished = true;
+      read_interface.close();
+      res({chunk, matched});
+    });
+  });
+}
+
 
