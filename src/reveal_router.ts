@@ -5,7 +5,7 @@ import express, { Request, Response, Express } from "express";
 
 import { ArgsParser } from "./args_parser";
 import { HTMLCodeModel } from "./html_code";
-import { MDIndexModel } from "./index_model";
+import { MDIndexModel, MDThumbnailModel } from "./index_model";
 import { RevealjsHTMLModel, RevealjsMarkdownModel } from "./reveal_model";
 
 import { view_path, label_key, md_path, thumbnail_path } from "./utils";
@@ -46,6 +46,7 @@ export class RevealRouter {
   private register_index(app: Express) : void {
     app.get(this.sub_directory, this.route_get_index.bind(this));
     app.get(this.sub_directory + this.index_js_name, this.route_get_index_js.bind(this));
+    app.get(this.sub_directory + thumbnail_path, this.route_get_thumbnail.bind(this));
   }
 
   private register_page(app: Express) : void {
@@ -85,6 +86,30 @@ export class RevealRouter {
     }
 
     res.sendFile(index_js_name.filename);
+  }
+
+  private route_get_thumbnail(req: Request, res: Response) : void {
+    const label = req.query[label_key];
+
+    const data = {
+      config_path: this.config_path,
+      resource_path: this.resource_directory,
+      label,
+      query: req.query,
+    };
+
+    MDThumbnailModel.from(data)
+      .then(model => {
+        if (model instanceof HTMLCodeModel) {
+          res.status(model.code).send(model.message);
+          return;
+        }
+        res.send(model.data);
+      })
+      .catch(err => {
+        console.error(err);
+        res.status(503).send("503: internal server error.");
+      });
   }
 
   private route_get_md(req: Request, res: Response) : void {

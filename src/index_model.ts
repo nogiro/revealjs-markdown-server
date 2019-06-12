@@ -1,7 +1,11 @@
 import fs from "fs";
+import path from "path";
 import readline from "readline";
 
 import { md_extname, view_path, label_key, recursive_readdir, load_head_chunk_from_file } from "./utils";
+
+import { RequiredByRevealjsParameters, generate_parameters } from "./parameters";
+import { HTMLCodeModel } from "./html_code";
 
 const title_regexp = /(^|\n)#+ ([^\n]*)/;
 
@@ -46,5 +50,44 @@ export class MDIndexModel {
   private constructor(private _list: MDIndexItem[]) {}
 
   get list() {return this._list}
+}
+
+export class MDThumbnailModel {
+  static from(params: RequiredByRevealjsParameters): Promise<MDThumbnailModel | HTMLCodeModel> {
+    return Promise.resolve()
+      .then(() => {
+        if (typeof params.label === "undefined") {
+          throw "";
+        }
+
+        const md_file: string = path.join(process.cwd(), params.resource_path, params.label + md_extname);
+        if (! fs.statSync(md_file).isFile()) {
+          throw "";
+        }
+
+        const parameters = generate_parameters(params);
+        const separators = [
+          parameters.separator,
+          parameters["separator-vertical"],
+        ].map(tmp_sep => {
+          if (tmp_sep[0] === "^") {return tmp_sep.substr(1)}
+          return tmp_sep;
+        });
+
+        const thumbnail_regexp = new RegExp("^(.*)(" + separators.join("|") + ")");
+        return load_head_chunk_from_file(md_file, thumbnail_regexp);
+      })
+      .then(chunk_result => {
+        const matched = chunk_result.matched;
+        const thumbnail_md_data = matched[1];
+        if (typeof thumbnail_md_data === "undefined") {return HTMLCodeModel.from(404)}
+        return new MDThumbnailModel(thumbnail_md_data);
+      })
+      .catch(() => {
+        return HTMLCodeModel.from(404);
+      });
+  }
+
+  private constructor(public readonly data: string) {}
 }
 
