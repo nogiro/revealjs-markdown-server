@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import readline from "readline";
 
-import { md_extname, view_path, label_key, recursive_readdir, load_head_chunk_from_file } from "./utils";
+import { md_extname, view_path, label_key, thumbnail_path, recursive_readdir, load_head_chunk_from_file } from "./utils";
 
 import { RequiredByRevealjsParameters, generate_parameters } from "./parameters";
 import { HTMLCodeModel } from "./html_code";
@@ -22,19 +22,25 @@ class MDIndexItem {
     const label = filename.slice(resource_dirname.length + 1).slice(0, -(md_extname.length));
     const path = `${view_path}?${label_key}=${label}`;
     return extract_title(filename)
-      .then(title => ({ path, title: label + ": " + title }))
-      .catch(() => ({ path, title: label }))
-      .then(({ path, title }) => new MDIndexItem(path, title));
+      .then(title => ({ label, path, title: label + ": " + title }))
+      .catch(() => ({ label, path, title: label }))
+      .then(({ label, path, title }) => new MDIndexItem(label, path, title));
   }
 
-  private constructor(private _path: string, private _title: string) {}
+  private constructor(
+    public readonly label: string,
+    public readonly path: string,
+    public readonly title: string,
+  ) {}
+}
 
-  get path() {return this._path}
-  get title() {return this._title}
+interface MDIndexMeta {
+  view_path: string;
+  thumbnail_path: string;
 }
 
 export class MDIndexModel {
-  static from(resource_dirname: string): Promise<MDIndexModel> {
+  static from(resource_dirname: string, index_js: string): Promise<MDIndexModel> {
     return recursive_readdir(resource_dirname)
       .then((files: string[]) => {
         const links_promises = files
@@ -43,13 +49,15 @@ export class MDIndexModel {
         return Promise.all(links_promises);
       })
       .then((items: MDIndexItem[]) => {
-        return new MDIndexModel(items);
+        return new MDIndexModel({view_path, thumbnail_path}, items, index_js);
       });
   }
 
-  private constructor(private _list: MDIndexItem[]) {}
-
-  get list() {return this._list}
+  private constructor(
+    public readonly meta: MDIndexMeta,
+    public readonly slides: MDIndexItem[],
+    public readonly index_js: string,
+  ) {}
 }
 
 export class MDThumbnailModel {

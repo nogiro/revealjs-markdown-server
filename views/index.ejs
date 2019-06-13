@@ -16,9 +16,10 @@
 <body>
   <div id="elm"></div>
   <script>
-    var flags = JSON.stringify(<%- JSON.stringify(list.map(function(a){return {path: a.path, title: a.title}})) %>);
+    var flags = JSON.stringify(<%- JSON.stringify({"meta": meta, "slides": slides}) %>);
   </script>
   <script src="<%= index_js %>"></script>
+  <script src="js/reveal.js"></script>
 </body>
 </html>
 

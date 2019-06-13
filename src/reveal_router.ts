@@ -56,9 +56,9 @@ export class RevealRouter {
 
   private route_get_index(req: Request, res: Response) : void {
     const index_js = this.sub_directory + this.index_js_name;
-    MDIndexModel.from(this.resource_directory)
+    MDIndexModel.from(this.resource_directory, index_js)
       .then(model => {
-        res.render("./index.ejs", {list: model.list, index_js});
+        res.render("./index.ejs", model);
       })
       .catch(err => {
         console.error(err);
