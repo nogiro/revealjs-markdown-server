@@ -1,6 +1,7 @@
 import path from "path";
 import fs from "fs";
 
+import puppeteer from "puppeteer";
 import express, { Request, Response, Express } from "express";
 
 import { ArgsParser } from "./args_parser";
@@ -11,14 +12,15 @@ import { RevealjsHTMLModel, RevealjsMarkdownModel } from "./reveal_model";
 import { view_path, label_key, md_path, thumbnail_path } from "./utils";
 
 export class RevealRouter {
+  private port: number;
   private sub_directory: string;
   private resource_directory: string;
   private config_path: string;
   private index_js_name: string;
 
-  constructor(args: ArgsParser) {
-    let sub_directory = "/" + args.sub_directory + "/";
-    this.sub_directory = sub_directory.replace(/^\/*/, "/").replace(/\/*$/, "/");
+  constructor(private puppeteer_instance: puppeteer.Browser, args: ArgsParser) {
+    this.port = args.port;
+    this.sub_directory = ("/" + args.sub_directory + "/").replace(/^\/*/, "/").replace(/\/*$/, "/");
     this.resource_directory = args.resource_directory;
     this.config_path = args.config;
     this.index_js_name = "index.js";
@@ -91,14 +93,7 @@ export class RevealRouter {
   private route_get_thumbnail(req: Request, res: Response) : void {
     const label = req.query[label_key];
 
-    const data = {
-      config_path: this.config_path,
-      resource_path: this.resource_directory,
-      label,
-      query: req.query,
-    };
-
-    MDThumbnailModel.from(data)
+    MDThumbnailModel.from(this.puppeteer_instance, this.port, this.sub_directory, label)
       .then(model => {
         if (model instanceof HTMLCodeModel) {
           res.status(model.code).send(model.message);

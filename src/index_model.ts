@@ -2,6 +2,8 @@ import fs from "fs";
 import path from "path";
 import readline from "readline";
 
+import puppeteer from "puppeteer";
+
 import { md_extname, view_path, label_key, thumbnail_path, recursive_readdir, load_head_chunk_from_file } from "./utils";
 
 import { RequiredByRevealjsParameters, generate_parameters } from "./parameters";
@@ -61,41 +63,25 @@ export class MDIndexModel {
 }
 
 export class MDThumbnailModel {
-  static from(params: RequiredByRevealjsParameters): Promise<MDThumbnailModel | HTMLCodeModel> {
+  static from(browser: puppeteer.Browser, port: number, sub_directory: string, label: string): Promise<MDThumbnailModel | HTMLCodeModel> {
+    const html_url = `http://localhost:${port}${sub_directory}${view_path}?${label_key}=${label}`;
+
     return Promise.resolve()
       .then(() => {
-        if (typeof params.label === "undefined") {
-          throw "";
-        }
-
-        const md_file: string = path.join(process.cwd(), params.resource_path, params.label + md_extname);
-        if (! fs.statSync(md_file).isFile()) {
-          throw "";
-        }
-
-        const parameters = generate_parameters(params);
-        const separators = [
-          parameters.separator,
-          parameters["separator-vertical"],
-        ].map(tmp_sep => {
-          if (tmp_sep[0] === "^") {return tmp_sep.substr(1)}
-          return tmp_sep;
-        });
-
-        const thumbnail_regexp = new RegExp("^(.*)(" + separators.join("|") + ")");
-        return load_head_chunk_from_file(md_file, thumbnail_regexp);
+        return browser.newPage();
       })
-      .then(chunk_result => {
-        const matched = chunk_result.matched;
-        const thumbnail_md_data = matched[1];
-        if (typeof thumbnail_md_data === "undefined") {return HTMLCodeModel.from(404)}
-        return new MDThumbnailModel(thumbnail_md_data);
+      .then(async (page) => {
+        await page.goto(html_url, {timeout: 15000});
+        const image = await page.screenshot({ encoding: 'binary' });
+        await page.close();
+
+        return new MDThumbnailModel(image);
       })
       .catch(() => {
         return HTMLCodeModel.from(404);
       });
   }
 
-  private constructor(public readonly data: string) {}
+  private constructor(public readonly data: Buffer) {}
 }
 

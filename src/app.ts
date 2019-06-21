@@ -1,3 +1,4 @@
+import puppeteer from "puppeteer";
 import express, { Request, Response, Express } from "express";
 
 import package_json from "./../package.json";
@@ -6,11 +7,18 @@ import { ArgsParser } from "./args_parser";
 import { RevealRouter } from "./reveal_router";
 
 const parser = new ArgsParser(process.argv);
-const reveal_router = new RevealRouter(parser);
 
-const app = express();
-app.set("view engine", "ejs");
-reveal_router.route(app);
+puppeteer
+  .launch({ args: ['--no-sandbox']})
+  .then(browser => {
+    const reveal_router = new RevealRouter(browser, parser);
 
-app.listen(parser.port, () => console.log(`${package_json.name} listening on port ${parser.port}!`));
+    const app = express();
+    app.set("view engine", "ejs");
+    reveal_router.route(app);
+
+    app.listen(parser.port, () => {
+      console.log(`${package_json.name} listening on port ${parser.port}!`);
+    });
+  });
 
