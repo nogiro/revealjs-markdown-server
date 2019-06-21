@@ -4,7 +4,7 @@ import readline from "readline";
 
 import puppeteer from "puppeteer";
 
-import { md_extname, view_path, label_key, thumbnail_path, recursive_readdir, load_head_chunk_from_file } from "./utils";
+import { md_extname, view_path, label_key, thumbnail_path, recursive_readdir, load_head_chunk_from_file, Cache } from "./utils";
 
 import { RequiredByRevealjsParameters, generate_parameters } from "./parameters";
 import { HTMLCodeModel } from "./html_code";
@@ -62,6 +62,30 @@ export class MDIndexModel {
   ) {}
 }
 
+export class MDThumbnailModelGenerator {
+  private cache: Cache;
+
+  constructor(private puppeteer_instance: puppeteer.Browser, cache_limit: number) {
+    this.cache = new Cache(cache_limit);
+  }
+
+  generate(port: number, sub_directory: string, label: string): Promise<MDThumbnailModel | HTMLCodeModel> {
+    const html_url = `http://localhost:${port}${sub_directory}${view_path}?${label_key}=${label}`;
+    const pulled = this.cache.pull(html_url);
+    if (typeof pulled !== "undefined") {
+      return Promise.resolve(MDThumbnailModel.from_buffer(pulled));
+    }
+
+    return MDThumbnailModel.from(this.puppeteer_instance, port, sub_directory, label)
+      .then(model => {
+        if (model instanceof MDThumbnailModel) {
+          this.cache.push(html_url, model.data);
+        }
+        return model;
+      });
+  }
+}
+
 export class MDThumbnailModel {
   static from(browser: puppeteer.Browser, port: number, sub_directory: string, label: string): Promise<MDThumbnailModel | HTMLCodeModel> {
     const html_url = `http://localhost:${port}${sub_directory}${view_path}?${label_key}=${label}`;
@@ -80,6 +104,10 @@ export class MDThumbnailModel {
       .catch(() => {
         return HTMLCodeModel.from(404);
       });
+  }
+
+  static from_buffer(data: Buffer) {
+    return new MDThumbnailModel(data);
   }
 
   private constructor(public readonly data: Buffer) {}

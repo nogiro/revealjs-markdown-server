@@ -59,4 +59,42 @@ export async function load_head_chunk_from_file(pathname : string, pattern: stri
   });
 }
 
+export class Cache {
+  private contailner: {[key: string]: {data: Buffer, pulled: number}};
+  private sum: number;
+
+  constructor(private cache_limit: number) {
+    this.contailner = {};
+    this.sum = 0;
+  }
+
+  push(key: string, data: Buffer): void {
+    const hit = this.contailner[key];
+    if (hit) {
+      this.sum -= hit.data.length;
+    }
+
+    this.sum += data.length;
+    this.contailner[key] = {data, pulled: Date.now()}
+
+    while (this.sum > this.cache_limit) {
+      const deleting_key = Object.keys(this.contailner)
+        .reduce((cum, cur) => {
+          const cum_obj = this.contailner[cum];
+          const cur_obj = this.contailner[cur];
+          return cum_obj < cur_obj ? cum : cur;
+        });
+      const deleting = this.contailner[deleting_key];
+      this.sum -= deleting.data.length;
+      delete this.contailner[deleting_key];
+    }
+  }
+
+  pull(key: string): Buffer | undefined {
+    const hit = this.contailner[key];
+    if (typeof hit === "undefined") {return}
+    hit.pulled = Date.now();
+    return hit.data;
+  }
+}
 

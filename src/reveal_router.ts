@@ -6,7 +6,7 @@ import express, { Request, Response, Express } from "express";
 
 import { ArgsParser } from "./args_parser";
 import { HTMLCodeModel } from "./html_code";
-import { MDIndexModel, MDThumbnailModel } from "./index_model";
+import { MDIndexModel, MDThumbnailModelGenerator, MDThumbnailModel } from "./index_model";
 import { RevealjsHTMLModel, RevealjsMarkdownModel } from "./reveal_model";
 
 import { view_path, label_key, md_path, thumbnail_path } from "./utils";
@@ -17,12 +17,14 @@ export class RevealRouter {
   private resource_directory: string;
   private config_path: string;
   private index_js_name: string;
+  private thumbnail_generator: MDThumbnailModelGenerator;
 
-  constructor(private puppeteer_instance: puppeteer.Browser, args: ArgsParser) {
+  constructor(puppeteer_instance: puppeteer.Browser, args: ArgsParser) {
     this.port = args.port;
     this.sub_directory = ("/" + args.sub_directory + "/").replace(/^\/*/, "/").replace(/\/*$/, "/");
     this.resource_directory = args.resource_directory;
     this.config_path = args.config;
+    this.thumbnail_generator = new MDThumbnailModelGenerator(puppeteer_instance, args.cache_bytes);
     this.index_js_name = "index.js";
   }
 
@@ -93,7 +95,7 @@ export class RevealRouter {
   private route_get_thumbnail(req: Request, res: Response) : void {
     const label = req.query[label_key];
 
-    MDThumbnailModel.from(this.puppeteer_instance, this.port, this.sub_directory, label)
+    this.thumbnail_generator.generate(this.port, this.sub_directory, label)
       .then(model => {
         if (model instanceof HTMLCodeModel) {
           res.status(model.code).send(model.message);
