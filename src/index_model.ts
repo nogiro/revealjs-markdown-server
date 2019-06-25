@@ -1,7 +1,9 @@
 import fs from "fs";
 import path from "path";
 import readline from "readline";
+import http from "http";
 
+import rp from "request-promise";
 import puppeteer from "puppeteer";
 
 import { md_extname, view_path, label_key, thumbnail_path, recursive_readdir, load_head_chunk_from_file, Cache } from "./utils";
@@ -62,6 +64,10 @@ export class MDIndexModel {
   ) {}
 }
 
+function isResponse(data: any): data is http.IncomingMessage {
+  return data instanceof http.IncomingMessage;
+}
+
 export class MDThumbnailModelGenerator {
   private cache: Cache;
 
@@ -71,25 +77,35 @@ export class MDThumbnailModelGenerator {
 
   generate(port: number, sub_directory: string, label: string): Promise<MDThumbnailModel | HTMLCodeModel> {
     const html_url = `http://localhost:${port}${sub_directory}${view_path}?${label_key}=${label}`;
-    const pulled = this.cache.pull(html_url);
-    if (typeof pulled !== "undefined") {
-      return Promise.resolve(MDThumbnailModel.from_buffer(pulled));
-    }
 
-    return MDThumbnailModel.from(this.puppeteer_instance, port, sub_directory, label)
-      .then(model => {
-        if (model instanceof MDThumbnailModel) {
-          this.cache.push(html_url, model.data);
-        }
-        return model;
-      });
+    return rp({
+      method: 'HEAD',
+      uri: html_url,
+      resolveWithFullResponse: true,
+    }).then(response => {
+      if (! isResponse(response)) {throw ""}
+      const header_date = response.headers["date"];
+      if (typeof header_date === "undefined") {throw ""}
+      this.cache.trash_if(html_url, (new Date(header_date)).getTime());
+      const pulled = this.cache.pull(html_url);
+      if (typeof pulled !== "undefined") {
+        return MDThumbnailModel.from_buffer(pulled);
+      }
+      return MDThumbnailModel.from(this.puppeteer_instance, html_url)
+        .then(model => {
+          if (model instanceof MDThumbnailModel) {
+            this.cache.push(html_url, model.data);
+          }
+          return model;
+        });
+    }).catch(() => {
+      return HTMLCodeModel.from(503)
+    });
   }
 }
 
 export class MDThumbnailModel {
-  static from(browser: puppeteer.Browser, port: number, sub_directory: string, label: string): Promise<MDThumbnailModel | HTMLCodeModel> {
-    const html_url = `http://localhost:${port}${sub_directory}${view_path}?${label_key}=${label}`;
-
+  static from(browser: puppeteer.Browser, html_url: string): Promise<MDThumbnailModel | HTMLCodeModel> {
     return Promise.resolve()
       .then(() => {
         return browser.newPage();

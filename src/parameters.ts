@@ -5,6 +5,7 @@ import css from "css";
 import yaml from "yaml";
 
 import {
+  md_extname,
   yaml_extname,
   css_extname,
 } from "./utils";
@@ -15,6 +16,7 @@ export interface RevealParameters {
   "separator-vertical": string;
   options: object;
   "custom-css"?: string;
+  mtime: number;
 }
 
 const default_parameters: RevealParameters = {
@@ -22,6 +24,7 @@ const default_parameters: RevealParameters = {
   "separator": "^\\n\\n\\n",
   "separator-vertical": "^\\n\\n",
   options: {},
+  mtime: 0,
 };
 
 export interface RequiredByRevealjsParameters {
@@ -33,8 +36,15 @@ export interface RequiredByRevealjsParameters {
 
 export function generate_parameters({config_path, resource_path, label, query}: RequiredByRevealjsParameters): RevealParameters {
   let ret = {...default_parameters};
+  const md_file: string = path.join(process.cwd(), resource_path, label + md_extname);
   const yaml_file: string = path.join(process.cwd(), resource_path, label + yaml_extname);
 
+  try {
+    const mtime = fs.statSync(md_file).mtime.getTime();
+    ret.mtime = mtime;
+  } catch (err) {
+    console.error(`${label}: file load error.`, err.message);
+  }
   try {
     ret = load_file_parameters(label, ret, config_path);
   } catch (err) {
@@ -50,14 +60,15 @@ export function generate_parameters({config_path, resource_path, label, query}: 
 }
 
 function load_file_parameters(label: string, ret: RevealParameters, config_path: string): RevealParameters {
+  const mtime = fs.statSync(config_path).mtime.getTime();
   const config_parameters = yaml.parse(fs.readFileSync(config_path, 'utf8'));
-  return load_parameters(label, ret, config_parameters);
+  return load_parameters(label, ret, config_parameters, mtime);
 }
 
 const module_revealjs_path = path.join(__dirname, "..", "node_modules", "reveal.js");
 const module_revealjs_css_theme_path = path.join(module_revealjs_path, "css", "theme");
 
-function load_parameters(label: string, default_values: RevealParameters, params: any): RevealParameters {
+function load_parameters(label: string, default_values: RevealParameters, params: any, mtime?: number): RevealParameters {
   let ret = {...default_values};
   if (typeof params.theme === "string") {
     const theme_css_path = path.join(module_revealjs_css_theme_path, params.theme + css_extname);
@@ -86,6 +97,9 @@ function load_parameters(label: string, default_values: RevealParameters, params
     }
   }
 
+  if (typeof mtime !== "undefined" && mtime > ret.mtime) {
+    ret.mtime = mtime;
+  }
   return ret;
 }
 

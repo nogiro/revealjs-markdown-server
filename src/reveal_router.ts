@@ -143,6 +143,7 @@ export class RevealRouter {
         res.status(model.code).send(model.message);
         return;
       }
+      res.set({date: new Date(model.parameters.mtime)});
       res.render("./md.ejs", model);
     } catch(err) {
       console.error(err);

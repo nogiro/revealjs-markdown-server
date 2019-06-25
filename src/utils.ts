@@ -84,9 +84,7 @@ export class Cache {
           const cur_obj = this.contailner[cur];
           return cum_obj < cur_obj ? cum : cur;
         });
-      const deleting = this.contailner[deleting_key];
-      this.sum -= deleting.data.length;
-      delete this.contailner[deleting_key];
+      this.delete_element(deleting_key);
     }
   }
 
@@ -95,6 +93,20 @@ export class Cache {
     if (typeof hit === "undefined") {return}
     hit.pulled = Date.now();
     return hit.data;
+  }
+
+  trash_if(key: string, new_date: number): void {
+    const hit = this.contailner[key];
+    if (typeof hit === "undefined") {return}
+    if (hit.pulled > new_date) {return}
+    this.delete_element(key);
+  }
+
+  private delete_element(key: string): void {
+    const deleting = this.contailner[key];
+    if (typeof deleting === "undefined") {return}
+    this.sum -= deleting.data.length;
+    delete this.contailner[key];
   }
 }
 
