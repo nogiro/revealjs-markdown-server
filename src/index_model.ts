@@ -68,10 +68,17 @@ function isResponse(data: any): data is http.IncomingMessage {
   return data instanceof http.IncomingMessage;
 }
 
+export interface PuppeteerHandle {
+  browser: puppeteer.Browser;
+  timeout: number;
+  wait_interval: number;
+  wait_limit: number;
+}
+
 export class MDThumbnailModelGenerator {
   private cache: Cache;
 
-  constructor(private puppeteer_instance: puppeteer.Browser, cache_limit: number) {
+  constructor(private puppeteer_handle: PuppeteerHandle, cache_limit: number) {
     this.cache = new Cache(cache_limit);
   }
 
@@ -91,7 +98,7 @@ export class MDThumbnailModelGenerator {
       if (typeof pulled !== "undefined") {
         return MDThumbnailModel.from_buffer(pulled);
       }
-      return MDThumbnailModel.from(this.puppeteer_instance, html_url)
+      return MDThumbnailModel.from(this.puppeteer_handle, html_url)
         .then(model => {
           if (model instanceof MDThumbnailModel) {
             this.cache.push(html_url, model.data);
@@ -105,14 +112,26 @@ export class MDThumbnailModelGenerator {
 }
 
 export class MDThumbnailModel {
-  static from(browser: puppeteer.Browser, html_url: string): Promise<MDThumbnailModel | HTMLCodeModel> {
+  static from(puppeteer_handle: PuppeteerHandle, html_url: string): Promise<MDThumbnailModel | HTMLCodeModel> {
     return Promise.resolve()
       .then(() => {
-        return browser.newPage();
+        return puppeteer_handle.browser.newPage();
       })
       .then(async (page) => {
-        await page.goto(html_url, {timeout: 15000});
-        const image = await page.screenshot({ encoding: 'binary' });
+        const timeout = puppeteer_handle.timeout;
+        const wait_interval = puppeteer_handle.wait_interval;
+        const wait_limit = puppeteer_handle.wait_limit;
+
+        await page.goto(html_url, {timeout, waitUntil: "networkidle0"});
+        let prev_image = Buffer.from([]);
+        let image = await page.screenshot({ encoding: 'binary' });
+        let wait_count = 0;
+        while (image.compare(prev_image) !== 0 && wait_count < wait_limit) {
+            prev_image = image;
+            await page.waitFor(wait_interval);
+            ++wait_count;
+            image = await page.screenshot({ encoding: 'binary' });
+        }
         await page.close();
 
         return new MDThumbnailModel(image);

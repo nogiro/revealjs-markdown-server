@@ -6,7 +6,7 @@ import express, { Request, Response, Express } from "express";
 
 import { ArgsParser } from "./args_parser";
 import { HTMLCodeModel } from "./html_code";
-import { MDIndexModel, MDThumbnailModelGenerator, MDThumbnailModel } from "./index_model";
+import { MDIndexModel, PuppeteerHandle, MDThumbnailModelGenerator, MDThumbnailModel } from "./index_model";
 import { RevealjsHTMLModel, RevealjsMarkdownModel } from "./reveal_model";
 
 import { view_path, label_key, md_path, thumbnail_path } from "./utils";
@@ -19,12 +19,18 @@ export class RevealRouter {
   private index_js_name: string;
   private thumbnail_generator: MDThumbnailModelGenerator;
 
-  constructor(puppeteer_instance: puppeteer.Browser, args: ArgsParser) {
+  constructor(browser: puppeteer.Browser, args: ArgsParser) {
     this.port = args.port;
     this.sub_directory = ("/" + args.sub_directory + "/").replace(/^\/*/, "/").replace(/\/*$/, "/");
     this.resource_directory = args.resource_directory;
     this.config_path = args.config;
-    this.thumbnail_generator = new MDThumbnailModelGenerator(puppeteer_instance, args.cache_bytes);
+    const puppeteer_handle: PuppeteerHandle = {
+      browser,
+      timeout: args.puppeteer_timeout,
+      wait_interval: args.puppeteer_wait_interval,
+      wait_limit: args.puppeteer_wait_limit,
+    };
+    this.thumbnail_generator = new MDThumbnailModelGenerator(puppeteer_handle, args.cache_bytes);
     this.index_js_name = "index.js";
   }
 
