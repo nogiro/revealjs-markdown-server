@@ -101,7 +101,16 @@ export class RevealRouter {
   private route_get_thumbnail(req: Request, res: Response) : void {
     const label = req.query[label_key];
 
-    this.thumbnail_generator.generate(this.port, this.sub_directory, label)
+    const data = {
+      config_path: this.config_path,
+      resource_path: this.resource_directory,
+      port: this.port,
+      sub_directory: this.sub_directory,
+      label,
+      query: {},
+    };
+
+    this.thumbnail_generator.generate(data)
       .then(model => {
         if (model instanceof HTMLCodeModel) {
           res.status(model.code).send(model.message);

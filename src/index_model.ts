@@ -6,7 +6,7 @@ import http from "http";
 import rp from "request-promise";
 import puppeteer from "puppeteer";
 
-import { md_extname, view_path, label_key, thumbnail_path, recursive_readdir, load_head_chunk_from_file, Cache } from "./utils";
+import { md_extname, thumbnail_suffix, view_path, label_key, thumbnail_path, recursive_readdir, load_head_chunk_from_file, Cache } from "./utils";
 
 import { RequiredByRevealjsParameters, generate_parameters } from "./parameters";
 import { HTMLCodeModel } from "./html_code";
@@ -75,6 +75,11 @@ export interface PuppeteerHandle {
   wait_limit: number;
 }
 
+interface MDThumbnailModelParameters extends RequiredByRevealjsParameters {
+  port: number;
+  sub_directory: string;
+}
+
 export class MDThumbnailModelGenerator {
   private cache: Cache;
 
@@ -82,7 +87,7 @@ export class MDThumbnailModelGenerator {
     this.cache = new Cache(cache_limit);
   }
 
-  generate(port: number, sub_directory: string, label: string): Promise<MDThumbnailModel | HTMLCodeModel> {
+  generate({port, sub_directory, config_path, resource_path, label, query}: MDThumbnailModelParameters): Promise<MDThumbnailModel | HTMLCodeModel> {
     const html_url = `http://localhost:${port}${sub_directory}${view_path}?${label_key}=${label}`;
 
     return rp({
@@ -98,10 +103,25 @@ export class MDThumbnailModelGenerator {
       if (typeof pulled !== "undefined") {
         return MDThumbnailModel.from_buffer(pulled);
       }
+
+      const parameters = generate_parameters({config_path, resource_path, label, query: {}});
+
+      const thumbnail_file = path.join(resource_path, label + thumbnail_suffix);
+      try {
+        const thumbnail_mtime = fs.statSync(thumbnail_file).mtime.getTime();
+        if (thumbnail_mtime > parameters.mtime) {
+          const thumbnail_data = fs.readFileSync(thumbnail_file);
+          this.cache.push(html_url, thumbnail_data);
+          return MDThumbnailModel.from_buffer(thumbnail_data);
+        }
+      } catch (err) {}
+
       return MDThumbnailModel.from(this.puppeteer_handle, html_url)
         .then(model => {
           if (model instanceof MDThumbnailModel) {
+            const thumbnail_data = model.data;
             this.cache.push(html_url, model.data);
+            fs.writeFileSync(thumbnail_file, thumbnail_data);
           }
           return model;
         });
