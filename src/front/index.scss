@@ -1,0 +1,32 @@
+.index {
+  div#{&}__container {
+    margin: 0 auto;
+    padding: 5px;
+    width: 90%;
+    background-color: #fff;
+    column-count: 3;
+    column-gap: 0;
+    @media (max-width: 920px) {
+      column-count: 2;
+    }
+    @media (max-width: 620px) {
+      column-count: 1;
+    }
+  }
+
+  div#{&}__grid {
+    padding: 5px;
+    -webkit-column-break-inside: avoid;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    width: 300px;
+  }
+
+  img#{&}__thumbnail {
+    width: 90%;
+  }
+
+  div#{&}__label {
+  }
+}
+

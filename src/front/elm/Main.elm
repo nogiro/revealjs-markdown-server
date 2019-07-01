@@ -3,7 +3,7 @@ module Main exposing (main)
 import Browser
 import Html exposing (Html, text, div, a, ul, li, img)
 import Html.Events exposing (onClick)
-import Html.Attributes exposing (href, src)
+import Html.Attributes exposing (href, src, class)
 import Json.Decode
 
 main =
@@ -82,7 +82,7 @@ view : Model -> Html Msg
 view model =
   case model of
     ParseOk a ->
-      div []
+      div [ class "index" ]
         [ renderIndexList (List.map (fillIndexItem a.meta) a.slides)
         ]
     ParseError ->
@@ -94,15 +94,15 @@ renderIndexList lst =
     0 ->
       div [] [ text "no resources" ]
     _ ->
-      div []
-      [ ul [] (List.map (\l -> renderIndexItem l) lst)
-      ]
+      div [ class "index__container" ] (List.map (\l -> renderIndexItem l) lst)
 
 renderIndexItem : FilledIndexItem -> Html msg
 renderIndexItem item =
-  li []
-    [ a [ href item.path ] [ text item.title ]
-    , img [ src item.thumbnail ] []
+  div [ class "index__grid" ]
+    [ a [ href item.path ]
+      [ img [ src item.thumbnail, class "index__thumbnail" ] []
+      , div [ class "index__label" ] [ text item.title ]
+      ]
     ]
 
 subscriptions : Model -> Sub Msg
