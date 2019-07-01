@@ -9,7 +9,7 @@ import { HTMLCodeModel } from "./html_code";
 import { MDIndexModel, PuppeteerHandle, MDThumbnailModelGenerator, MDThumbnailModel } from "./index_model";
 import { RevealjsHTMLModel, RevealjsMarkdownModel } from "./reveal_model";
 
-import { view_path, label_key, md_path, thumbnail_path } from "./utils";
+import { js_extname, css_extname, view_path, label_key, md_path, thumbnail_path } from "./utils";
 
 export class RevealRouter {
   private port: number;
@@ -17,6 +17,7 @@ export class RevealRouter {
   private resource_directory: string;
   private config_path: string;
   private index_js_name: string;
+  private index_css_name: string;
   private thumbnail_generator: MDThumbnailModelGenerator;
 
   constructor(browser: puppeteer.Browser, args: ArgsParser) {
@@ -31,7 +32,9 @@ export class RevealRouter {
       wait_limit: args.puppeteer_wait_limit,
     };
     this.thumbnail_generator = new MDThumbnailModelGenerator(puppeteer_handle, args.cache_bytes);
-    this.index_js_name = "index.js";
+    const index_prefix = "index";
+    this.index_js_name = index_prefix + js_extname;
+    this.index_css_name = index_prefix + css_extname;
   }
 
   route(app: Express) : void {
@@ -55,7 +58,8 @@ export class RevealRouter {
 
   private register_index(app: Express) : void {
     app.get(this.sub_directory, this.route_get_index.bind(this));
-    app.get(this.sub_directory + this.index_js_name, this.route_get_index_js.bind(this));
+    app.get(this.sub_directory + this.index_js_name, this.route_get_index_subfile.bind(this));
+    app.get(this.sub_directory + this.index_css_name, this.route_get_index_subfile.bind(this));
     app.get(this.sub_directory + thumbnail_path, this.route_get_thumbnail.bind(this));
   }
 
@@ -76,26 +80,27 @@ export class RevealRouter {
       });
   }
 
-  private route_get_index_js(req: Request, res: Response) : void {
+  private route_get_index_subfile(req: Request, res: Response) : void {
+    const extname = path.extname(req.path);
     const dir = path.join(__dirname, "..", "dist");
-    const index_js_list = fs.readdirSync(dir)
-      .filter(a => (a.startsWith("front") && a.endsWith(".js")))
+    const index_file_list = fs.readdirSync(dir)
+      .filter(a => (a.startsWith("front") && a.endsWith(extname)))
       .map(a => {
         const filename = path.join(dir, a);
         const mtime = fs.statSync(filename).mtime.getTime();
         return { filename, mtime };
       });
-    index_js_list.sort((a, b) => b.mtime - a.mtime);
-    const index_js_name = index_js_list[0];
+    index_file_list.sort((a, b) => b.mtime - a.mtime);
+    const index_file_name = index_file_list[0];
 
-    if (typeof index_js_name === "undefined") {
-      console.error("js not found");
+    if (typeof index_file_name === "undefined") {
+      console.error(`file(${req.path}) not found`);
       const model = HTMLCodeModel.from(404);
       res.status(model.code).send(model.message);
       return;
     }
 
-    res.sendFile(index_js_name.filename);
+    res.sendFile(index_file_name.filename);
   }
 
   private route_get_thumbnail(req: Request, res: Response) : void {

@@ -4,6 +4,7 @@ import readline from "readline";
 
 export const md_extname = ".md";
 export const yaml_extname = ".yaml";
+export const js_extname = ".js";
 export const css_extname = ".css";
 export const thumbnail_suffix = ".thumbnail.png";
 

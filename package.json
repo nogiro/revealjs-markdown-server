@@ -37,7 +37,7 @@
   "scripts": {
     "build": "npm run build-server && npm run build-index",
     "build-server": "parcel build --target node src/app.ts",
-    "build-index": "parcel build src/front/elm-dummy.html && ls -t dist/front.* | sed '1,2d;s_.*_rm &_e'",
+    "build-index": "parcel build src/front/elm-dummy.html && ls -t dist/front.*.js* | sed '1,2d;s_.*_rm &_e' && ls -t dist/front.*.css* | sed '1,2d;s_.*_rm &_e'",
     "start": "node dist/app.js",
     "type-check": "tsc --noEmit --resolveJsonModule --watch"
   }
