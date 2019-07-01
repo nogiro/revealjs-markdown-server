@@ -6,21 +6,30 @@
   "name": "revealjs-markdown-server",
   "version": "0.0.0",
   "dependencies": {
+    "bytes": "^3.1.0",
     "commander": "^2.20.0",
     "css": "^2.2.4",
     "ejs": "^2.6.1",
     "express": "^4.16.4",
+    "puppeteer": "^1.17.0",
+    "request": "^2.88.0",
+    "request-promise": "^4.2.4",
     "reveal.js": "^3.8.0",
     "yaml": "^1.5.1"
   },
   "devDependencies": {
+    "@types/bytes": "^3.0.0",
     "@types/css": "0.0.31",
     "@types/express": "^4.16.1",
     "@types/node": "^12.0.0",
+    "@types/puppeteer": "^1.12.4",
+    "@types/request": "^2.48.1",
+    "@types/request-promise": "^4.1.44",
     "@types/yaml": "^1.0.2",
     "elm": "^0.19.0-no-deps",
     "node-elm-compiler": "^5.0.3",
     "parcel-bundler": "^1.12.3",
+    "sass": "^1.22.1",
     "typescript": "^3.4.5"
   },
   "keywords": [],
@@ -29,8 +38,8 @@
   "scripts": {
     "build": "npm run build-server && npm run build-index",
     "build-server": "parcel build --target node src/app.ts",
-    "build-index": "parcel build src/front/elm-dummy.html && ls -t dist/front.* | sed '1,2d;s_.*_rm &_e'",
+    "build-index": "parcel build src/front/elm-dummy.html && ls -t dist/front.*.js* | sed '1,2d;s_.*_rm &_e' && ls -t dist/front.*.css* | sed '1,2d;s_.*_rm &_e'",
     "start": "node dist/app.js",
-    "type-check": "tsc --noEmit --resolveJsonModule"
+    "type-check": "tsc --noEmit --resolveJsonModule --watch"
   }
 }

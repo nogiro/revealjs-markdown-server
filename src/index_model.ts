@@ -1,8 +1,12 @@
 import fs from "fs";
 import path from "path";
 import readline from "readline";
+import http from "http";
 
-import { md_extname, view_path, label_key, recursive_readdir, load_head_chunk_from_file } from "./utils";
+import rp from "request-promise";
+import puppeteer from "puppeteer";
+
+import { md_extname, thumbnail_suffix, view_path, label_key, thumbnail_path, recursive_readdir, load_head_chunk_from_file, Cache } from "./utils";
 
 import { RequiredByRevealjsParameters, generate_parameters } from "./parameters";
 import { HTMLCodeModel } from "./html_code";
@@ -22,19 +26,25 @@ class MDIndexItem {
     const label = filename.slice(resource_dirname.length + 1).slice(0, -(md_extname.length));
     const path = `${view_path}?${label_key}=${label}`;
     return extract_title(filename)
-      .then(title => ({ path, title: label + ": " + title }))
-      .catch(() => ({ path, title: label }))
-      .then(({ path, title }) => new MDIndexItem(path, title));
+      .then(title => ({ label, path, title: label + ": " + title }))
+      .catch(() => ({ label, path, title: label }))
+      .then(({ label, path, title }) => new MDIndexItem(label, path, title));
   }
 
-  private constructor(private _path: string, private _title: string) {}
+  private constructor(
+    public readonly label: string,
+    public readonly path: string,
+    public readonly title: string,
+  ) {}
+}
 
-  get path() {return this._path}
-  get title() {return this._title}
+interface MDIndexMeta {
+  view_path: string;
+  thumbnail_path: string;
 }
 
 export class MDIndexModel {
-  static from(resource_dirname: string): Promise<MDIndexModel> {
+  static from(resource_dirname: string, index_js: string): Promise<MDIndexModel> {
     return recursive_readdir(resource_dirname)
       .then((files: string[]) => {
         const links_promises = files
@@ -43,51 +53,124 @@ export class MDIndexModel {
         return Promise.all(links_promises);
       })
       .then((items: MDIndexItem[]) => {
-        return new MDIndexModel(items);
+        return new MDIndexModel({view_path, thumbnail_path}, items, index_js);
       });
   }
 
-  private constructor(private _list: MDIndexItem[]) {}
+  private constructor(
+    public readonly meta: MDIndexMeta,
+    public readonly slides: MDIndexItem[],
+    public readonly index_js: string,
+  ) {}
+}
 
-  get list() {return this._list}
+function isResponse(data: any): data is http.IncomingMessage {
+  return data instanceof http.IncomingMessage;
+}
+
+export interface PuppeteerHandle {
+  browser: puppeteer.Browser;
+  timeout: number;
+  wait_interval: number;
+  wait_limit: number;
+}
+
+interface MDThumbnailModelParameters extends RequiredByRevealjsParameters {
+  port: number;
+  sub_directory: string;
+}
+
+export class MDThumbnailModelGenerator {
+  private cache: Cache;
+
+  constructor(private puppeteer_handle: PuppeteerHandle, cache_limit: number) {
+    this.cache = new Cache(cache_limit);
+  }
+
+  generate({port, sub_directory, config_path, resource_path, label, query}: MDThumbnailModelParameters): Promise<MDThumbnailModel | HTMLCodeModel> {
+    const html_url = `http://localhost:${port}${sub_directory}${view_path}?${label_key}=${label}`;
+
+    return rp({
+      method: 'HEAD',
+      uri: html_url,
+      resolveWithFullResponse: true,
+    }).then(response => {
+      if (! isResponse(response)) {throw ""}
+      const header_date = response.headers["date"];
+      if (typeof header_date === "undefined") {throw ""}
+      this.cache.trash_if(html_url, (new Date(header_date)).getTime());
+      const pulled = this.cache.pull(html_url);
+      if (typeof pulled !== "undefined") {
+        return MDThumbnailModel.from_buffer(pulled);
+      }
+
+      const parameters = generate_parameters({config_path, resource_path, label, query: {}});
+
+      const thumbnail_file = path.join(resource_path, label + thumbnail_suffix);
+      try {
+        const thumbnail_mtime = fs.statSync(thumbnail_file).mtime.getTime();
+        if (thumbnail_mtime > parameters.mtime) {
+          const thumbnail_data = fs.readFileSync(thumbnail_file);
+          this.cache.push(html_url, thumbnail_data);
+          return MDThumbnailModel.from_buffer(thumbnail_data);
+        }
+      } catch (err) {}
+
+      return MDThumbnailModel.from(this.puppeteer_handle, html_url)
+        .then(model => {
+          if (model instanceof MDThumbnailModel) {
+            const thumbnail_data = model.data;
+            this.cache.push(html_url, model.data);
+            fs.writeFileSync(thumbnail_file, thumbnail_data);
+          }
+          return model;
+        });
+    }).catch(() => {
+      return HTMLCodeModel.from(503)
+    });
+  }
 }
 
 export class MDThumbnailModel {
-  static from(params: RequiredByRevealjsParameters): Promise<MDThumbnailModel | HTMLCodeModel> {
+  static from(puppeteer_handle: PuppeteerHandle, html_url: string): Promise<MDThumbnailModel | HTMLCodeModel> {
     return Promise.resolve()
       .then(() => {
-        if (typeof params.label === "undefined") {
-          throw "";
-        }
-
-        const md_file: string = path.join(process.cwd(), params.resource_path, params.label + md_extname);
-        if (! fs.statSync(md_file).isFile()) {
-          throw "";
-        }
-
-        const parameters = generate_parameters(params);
-        const separators = [
-          parameters.separator,
-          parameters["separator-vertical"],
-        ].map(tmp_sep => {
-          if (tmp_sep[0] === "^") {return tmp_sep.substr(1)}
-          return tmp_sep;
-        });
-
-        const thumbnail_regexp = new RegExp("^(.*)(" + separators.join("|") + ")");
-        return load_head_chunk_from_file(md_file, thumbnail_regexp);
+        return puppeteer_handle.browser.newPage();
       })
-      .then(chunk_result => {
-        const matched = chunk_result.matched;
-        const thumbnail_md_data = matched[1];
-        if (typeof thumbnail_md_data === "undefined") {return HTMLCodeModel.from(404)}
-        return new MDThumbnailModel(thumbnail_md_data);
+      .then(async (page) => {
+        try {
+          const timeout = puppeteer_handle.timeout;
+          const wait_interval = puppeteer_handle.wait_interval;
+          const wait_limit = puppeteer_handle.wait_limit;
+
+          await page.goto(html_url, {timeout, waitUntil: "networkidle0"});
+          let prev_image = Buffer.from([]);
+          let image = await page.screenshot({ encoding: 'binary' });
+          let wait_count = 0;
+          while (image.compare(prev_image) !== 0 && wait_count < wait_limit) {
+            prev_image = image;
+            await page.waitFor(wait_interval);
+            ++wait_count;
+            image = await page.screenshot({ encoding: 'binary' });
+          }
+          try {
+            await page.close();
+          } catch (err) {}
+          return new MDThumbnailModel(image);
+        } catch (err) {
+          await page.close();
+          throw "";
+        }
       })
       .catch(() => {
         return HTMLCodeModel.from(404);
       });
   }
 
-  private constructor(public readonly data: string) {}
+  static from_buffer(data: Buffer) {
+    return new MDThumbnailModel(data);
+  }
+
+  private constructor(public readonly data: Buffer) {}
 }
 
