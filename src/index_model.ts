@@ -118,23 +118,29 @@ export class MDThumbnailModel {
         return puppeteer_handle.browser.newPage();
       })
       .then(async (page) => {
-        const timeout = puppeteer_handle.timeout;
-        const wait_interval = puppeteer_handle.wait_interval;
-        const wait_limit = puppeteer_handle.wait_limit;
+        try {
+          const timeout = puppeteer_handle.timeout;
+          const wait_interval = puppeteer_handle.wait_interval;
+          const wait_limit = puppeteer_handle.wait_limit;
 
-        await page.goto(html_url, {timeout, waitUntil: "networkidle0"});
-        let prev_image = Buffer.from([]);
-        let image = await page.screenshot({ encoding: 'binary' });
-        let wait_count = 0;
-        while (image.compare(prev_image) !== 0 && wait_count < wait_limit) {
+          await page.goto(html_url, {timeout, waitUntil: "networkidle0"});
+          let prev_image = Buffer.from([]);
+          let image = await page.screenshot({ encoding: 'binary' });
+          let wait_count = 0;
+          while (image.compare(prev_image) !== 0 && wait_count < wait_limit) {
             prev_image = image;
             await page.waitFor(wait_interval);
             ++wait_count;
             image = await page.screenshot({ encoding: 'binary' });
+          }
+          try {
+            await page.close();
+          } catch (err) {}
+          return new MDThumbnailModel(image);
+        } catch (err) {
+          await page.close();
+          throw "";
         }
-        await page.close();
-
-        return new MDThumbnailModel(image);
       })
       .catch(() => {
         return HTMLCodeModel.from(404);
