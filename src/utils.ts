@@ -76,6 +76,13 @@ export async function load_head_chunk_from_file(pathname : string, pattern: stri
       read_interface.close();
       res({chunk, matched});
     });
+    read_interface.on("close", () => {
+      const chunk = loaded.join("\n");
+      const matched = chunk.match(pattern);
+
+      if (matched === null) {rej(); return}
+      res({chunk, matched});
+    });
   });
 }
 
