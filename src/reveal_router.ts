@@ -8,8 +8,9 @@ import { ArgsParser } from "./args_parser";
 import { HTMLCodeModel } from "./html_code";
 import { MDIndexModel, PuppeteerHandle, MDThumbnailModelGenerator, MDThumbnailModel } from "./index_model";
 import { RevealjsHTMLModel, RevealjsMarkdownModel } from "./reveal_model";
+import { GetImgModel } from "./img_model";
 
-import { js_extname, css_extname, view_path, label_key, md_path, thumbnail_path } from "./utils";
+import { js_extname, css_extname, view_path, label_key, md_path, thumbnail_path, img_path } from "./utils";
 
 export class RevealRouter {
   private port: number;
@@ -67,6 +68,7 @@ export class RevealRouter {
   private register_page(app: Express) : void {
     app.get(this.sub_directory + md_path, this.route_get_md.bind(this));
     app.get(this.sub_directory + view_path, this.route_get_view.bind(this));
+    app.get(this.sub_directory + img_path + "/:id", this.route_get_img.bind(this));
   }
 
   private route_get_index(req: Request, res: Response) : void {
@@ -166,6 +168,27 @@ export class RevealRouter {
       }
       res.set({date: new Date(model.parameters.mtime)});
       res.render("./md.ejs", model);
+    } catch(err) {
+      console.error(err);
+      res.status(503).send("503: internal server error.");
+      return;
+    };
+  }
+
+  private route_get_img(req: Request, res: Response) : void {
+    const id: string | undefined = req.params.id;
+
+    try {
+      const data = {
+        resource_path: this.resource_directory,
+        id,
+      };
+      const model = GetImgModel.from(data);
+      if (model instanceof HTMLCodeModel) {
+        res.status(model.code).send(model.message);
+        return;
+      }
+      res.sendFile(model.path);
     } catch(err) {
       console.error(err);
       res.status(503).send("503: internal server error.");

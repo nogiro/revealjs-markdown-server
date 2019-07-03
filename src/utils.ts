@@ -12,6 +12,7 @@ export const view_path = "view";
 export const label_key = "label";
 export const md_path = "md";
 export const thumbnail_path = "thumbnail";
+export const img_path = "img";
 
 export async function recursive_readdir(pathname: string): Promise<string[]> {
   const ret : string[] = [];
