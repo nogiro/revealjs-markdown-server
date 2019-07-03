@@ -6,7 +6,17 @@ import http from "http";
 import rp from "request-promise";
 import puppeteer from "puppeteer";
 
-import { md_extname, thumbnail_suffix, view_path, label_key, thumbnail_path, recursive_readdir, load_head_chunk_from_file, Cache } from "./utils";
+import {
+  md_extname,
+  thumbnail_extname,
+  view_path,
+  label_key,
+  thumbnail_path,
+  recursive_readdir,
+  recursive_mkdir,
+  load_head_chunk_from_file,
+  Cache,
+} from "./utils";
 
 import { RequiredByRevealjsParameters, generate_parameters } from "./parameters";
 import { HTMLCodeModel } from "./html_code";
@@ -83,7 +93,7 @@ interface MDThumbnailModelParameters extends RequiredByRevealjsParameters {
 export class MDThumbnailModelGenerator {
   private cache: Cache;
 
-  constructor(private puppeteer_handle: PuppeteerHandle, cache_limit: number) {
+  constructor(private puppeteer_handle: PuppeteerHandle, private thumbnail_root: string, cache_limit: number) {
     this.cache = new Cache(cache_limit);
   }
 
@@ -106,7 +116,7 @@ export class MDThumbnailModelGenerator {
 
       const parameters = generate_parameters({config_path, resource_path, label, query: {}});
 
-      const thumbnail_file = path.join(resource_path, label + thumbnail_suffix);
+      const thumbnail_file = path.join(this.thumbnail_root, label + thumbnail_extname);
       try {
         const thumbnail_mtime = fs.statSync(thumbnail_file).mtime.getTime();
         if (thumbnail_mtime > parameters.mtime) {
@@ -121,6 +131,7 @@ export class MDThumbnailModelGenerator {
           if (model instanceof MDThumbnailModel) {
             const thumbnail_data = model.data;
             this.cache.push(html_url, model.data);
+            recursive_mkdir(path.dirname(thumbnail_file));
             fs.writeFileSync(thumbnail_file, thumbnail_data);
           }
           return model;

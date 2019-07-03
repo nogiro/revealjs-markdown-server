@@ -4,7 +4,7 @@
     "email": "nogiro.temp@gmail.com"
   },
   "name": "revealjs-markdown-server",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "dependencies": {
     "bytes": "^3.1.0",
     "commander": "^2.20.0",

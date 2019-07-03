@@ -13,7 +13,7 @@ $ npm run build
 See `npm start -- --help`.
 
 ## add slide
-Place `*.md` into `resource/` (or specified directory by `-d`).
+Place `*.md` into `resource/md/` (or specified `<path>/md/` by `-d <path>`).
 
 ## Docker support
 ```
@@ -22,4 +22,9 @@ $ cd revealjs-markdown-server
 $ docker build .
 $ docker run -v /path/to/resource:/resource -p 3000:3000 <image id>
 ```
+
+## screenshot of index
+It take a screenshot after `seq 2 10 | sed 's%.*%echo "## test &" > resource/md/&.md%e'`.
+
+![](README/screenshot.png)
 

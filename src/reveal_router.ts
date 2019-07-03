@@ -8,8 +8,9 @@ import { ArgsParser } from "./args_parser";
 import { HTMLCodeModel } from "./html_code";
 import { MDIndexModel, PuppeteerHandle, MDThumbnailModelGenerator, MDThumbnailModel } from "./index_model";
 import { RevealjsHTMLModel, RevealjsMarkdownModel } from "./reveal_model";
+import { GetImgModel } from "./img_model";
 
-import { js_extname, css_extname, view_path, label_key, md_path, thumbnail_path } from "./utils";
+import { js_extname, css_extname, view_path, label_key, md_path, thumbnail_path, img_path } from "./utils";
 
 export class RevealRouter {
   private port: number;
@@ -23,7 +24,7 @@ export class RevealRouter {
   constructor(browser: puppeteer.Browser, args: ArgsParser) {
     this.port = args.port;
     this.sub_directory = ("/" + args.sub_directory + "/").replace(/^\/*/, "/").replace(/\/*$/, "/");
-    this.resource_directory = args.resource_directory;
+    this.resource_directory = path.join(args.resource_directory, md_path);
     this.config_path = args.config;
     const puppeteer_handle: PuppeteerHandle = {
       browser,
@@ -31,7 +32,8 @@ export class RevealRouter {
       wait_interval: args.puppeteer_wait_interval,
       wait_limit: args.puppeteer_wait_limit,
     };
-    this.thumbnail_generator = new MDThumbnailModelGenerator(puppeteer_handle, args.cache_bytes);
+    const thumbnail_root = path.join(args.resource_directory, thumbnail_path);
+    this.thumbnail_generator = new MDThumbnailModelGenerator(puppeteer_handle, thumbnail_root, args.cache_bytes);
     const index_prefix = "index";
     this.index_js_name = index_prefix + js_extname;
     this.index_css_name = index_prefix + css_extname;
@@ -66,6 +68,7 @@ export class RevealRouter {
   private register_page(app: Express) : void {
     app.get(this.sub_directory + md_path, this.route_get_md.bind(this));
     app.get(this.sub_directory + view_path, this.route_get_view.bind(this));
+    app.get(this.sub_directory + img_path + "/:id", this.route_get_img.bind(this));
   }
 
   private route_get_index(req: Request, res: Response) : void {
@@ -165,6 +168,27 @@ export class RevealRouter {
       }
       res.set({date: new Date(model.parameters.mtime)});
       res.render("./md.ejs", model);
+    } catch(err) {
+      console.error(err);
+      res.status(503).send("503: internal server error.");
+      return;
+    };
+  }
+
+  private route_get_img(req: Request, res: Response) : void {
+    const id: string | undefined = req.params.id;
+
+    try {
+      const data = {
+        resource_path: this.resource_directory,
+        id,
+      };
+      const model = GetImgModel.from(data);
+      if (model instanceof HTMLCodeModel) {
+        res.status(model.code).send(model.message);
+        return;
+      }
+      res.sendFile(model.path);
     } catch(err) {
       console.error(err);
       res.status(503).send("503: internal server error.");
