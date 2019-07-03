@@ -13,7 +13,7 @@ $ npm run build
 See `npm start -- --help`.
 
 ## add slide
-Place `*.md` into `resource/` (or specified directory by `-d`).
+Place `*.md` into `resource/md/` (or specified `<path>/md/` by `-d <path>`).
 
 ## Docker support
 ```

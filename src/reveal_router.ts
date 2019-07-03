@@ -23,7 +23,7 @@ export class RevealRouter {
   constructor(browser: puppeteer.Browser, args: ArgsParser) {
     this.port = args.port;
     this.sub_directory = ("/" + args.sub_directory + "/").replace(/^\/*/, "/").replace(/\/*$/, "/");
-    this.resource_directory = args.resource_directory;
+    this.resource_directory = path.join(args.resource_directory, md_path);
     this.config_path = args.config;
     const puppeteer_handle: PuppeteerHandle = {
       browser,
@@ -31,7 +31,8 @@ export class RevealRouter {
       wait_interval: args.puppeteer_wait_interval,
       wait_limit: args.puppeteer_wait_limit,
     };
-    this.thumbnail_generator = new MDThumbnailModelGenerator(puppeteer_handle, args.cache_bytes);
+    const thumbnail_root = path.join(args.resource_directory, thumbnail_path);
+    this.thumbnail_generator = new MDThumbnailModelGenerator(puppeteer_handle, thumbnail_root, args.cache_bytes);
     const index_prefix = "index";
     this.index_js_name = index_prefix + js_extname;
     this.index_css_name = index_prefix + css_extname;

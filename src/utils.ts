@@ -6,14 +6,14 @@ export const md_extname = ".md";
 export const yaml_extname = ".yaml";
 export const js_extname = ".js";
 export const css_extname = ".css";
-export const thumbnail_suffix = ".thumbnail.png";
+export const thumbnail_extname = ".png";
 
 export const view_path = "view";
 export const label_key = "label";
 export const md_path = "md";
 export const thumbnail_path = "thumbnail";
 
-export async function recursive_readdir(pathname: string) : Promise<string[]> {
+export async function recursive_readdir(pathname: string): Promise<string[]> {
   const ret : string[] = [];
 
   const f = (current : string) => {
@@ -30,6 +30,23 @@ export async function recursive_readdir(pathname: string) : Promise<string[]> {
 
   f(pathname);
   return ret;
+}
+
+export function recursive_mkdir(pathname: string): void {
+  const dir_list: Array<string> = [];
+  let tmp_path;
+  for (tmp_path = pathname; ! fs.existsSync(tmp_path); tmp_path = path.dirname(tmp_path)) {
+    dir_list.push(tmp_path);
+  }
+
+  if (path.isAbsolute(tmp_path) && ! fs.statSync(tmp_path).isDirectory()) {
+    throw new Error(`base path(${tmp_path}) is not directory.`);
+  }
+  dir_list
+    .reverse()
+    .forEach(tmp_path => {
+      fs.mkdirSync(tmp_path);
+    });
 }
 
 export async function load_head_chunk_from_file(pathname : string, pattern: string | RegExp, num_load: number = 3, max: number = 10): Promise<{chunk: string; matched: RegExpMatchArray;}> {
