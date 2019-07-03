@@ -1,15 +1,18 @@
 .index {
   div#{&}__container {
-    margin: 0 auto;
+    margin: 100px auto;
     padding: 5px;
-    width: 90%;
     background-color: #fff;
-    column-count: 3;
     column-gap: 0;
-    @media (max-width: 920px) {
+    max-width: 1300px;
+    column-count: 4;
+    @media (max-width: 1260px) {
+      column-count: 3;
+    }
+    @media (max-width: 960px) {
       column-count: 2;
     }
-    @media (max-width: 620px) {
+    @media (max-width: 660px) {
       column-count: 1;
     }
   }
