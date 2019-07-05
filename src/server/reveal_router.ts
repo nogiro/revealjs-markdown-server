@@ -5,10 +5,10 @@ import puppeteer from "puppeteer";
 import express, { Request, Response, Express } from "express";
 
 import { ArgsParser } from "./args_parser";
-import { HTMLCodeModel } from "./html_code";
-import { MDIndexModel, PuppeteerHandle, MDThumbnailModelGenerator, MDThumbnailModel } from "./index_model";
-import { RevealjsHTMLModel, RevealjsMarkdownModel } from "./reveal_model";
-import { GetImgModel } from "./img_model";
+import { HTMLCodeModel } from "./model/html_code";
+import { MDIndexModel, PuppeteerHandle, MDThumbnailModelGenerator, MDThumbnailModel } from "./model/index_model";
+import { RevealjsHTMLModel, RevealjsMarkdownModel } from "./model/reveal_model";
+import { GetImgModel } from "./model/img_model";
 
 import { js_extname, css_extname, view_path, label_key, md_path, thumbnail_path, img_path } from "./utils";
 
@@ -84,18 +84,13 @@ export class RevealRouter {
   }
 
   private route_get_index_subfile(req: Request, res: Response) : void {
-    const extname = path.extname(req.path);
+    const basename = path.basename(req.path);
     const dir = path.join(__dirname, "..", "dist");
     const index_file_list = fs.readdirSync(dir)
-      .filter(a => (a.startsWith("front") && a.endsWith(extname)))
-      .map(a => {
-        const filename = path.join(dir, a);
-        const mtime = fs.statSync(filename).mtime.getTime();
-        return { filename, mtime };
-      });
-    index_file_list.sort((a, b) => b.mtime - a.mtime);
-    const index_file_name = index_file_list[0];
+      .filter(a => a === basename)
+      .map(a => path.join(dir, a));
 
+    const index_file_name = index_file_list[0];
     if (typeof index_file_name === "undefined") {
       console.error(`file(${req.path}) not found`);
       const model = HTMLCodeModel.from(404);
@@ -103,7 +98,7 @@ export class RevealRouter {
       return;
     }
 
-    res.sendFile(index_file_name.filename);
+    res.sendFile(index_file_name);
   }
 
   private route_get_thumbnail(req: Request, res: Response) : void {

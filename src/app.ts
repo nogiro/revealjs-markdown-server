@@ -3,8 +3,8 @@ import express, { Request, Response, Express } from "express";
 
 import package_json from "./../package.json";
 
-import { ArgsParser } from "./args_parser";
-import { RevealRouter } from "./reveal_router";
+import { ArgsParser } from "./server/args_parser";
+import { RevealRouter } from "./server/reveal_router";
 
 const parser = new ArgsParser(process.argv);
 

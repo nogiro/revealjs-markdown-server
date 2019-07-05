@@ -16,9 +16,9 @@ import {
   recursive_mkdir,
   load_head_chunk_from_file,
   Cache,
-} from "./utils";
+} from "./../utils";
 
-import { RequiredByRevealjsParameters, generate_parameters } from "./parameters";
+import { RequiredByRevealjsParameters, generate_parameters } from "./../parameters";
 import { HTMLCodeModel } from "./html_code";
 
 const title_regexp = /(^|\n)#+ ([^\n]*)/;
