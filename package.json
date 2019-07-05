@@ -36,9 +36,10 @@
   "license": "MIT",
   "main": "index.js",
   "scripts": {
-    "build": "npm run build-server && npm run build-index",
+    "build": "npm run build-server && npm run build-index-js && npm run build-index-css",
     "build-server": "parcel build --target node src/app.ts",
-    "build-index": "parcel build src/front/elm-dummy.html && ls -t dist/front.*.js* | sed '1,2d;s_.*_rm &_e' && ls -t dist/front.*.css* | sed '1,2d;s_.*_rm &_e'",
+    "build-index-js": "parcel build src/front/index.js",
+    "build-index-css": "parcel build src/front/index.scss",
     "start": "node dist/app.js",
     "type-check": "tsc --noEmit --resolveJsonModule --watch"
   }
