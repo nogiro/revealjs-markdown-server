@@ -1,7 +1,7 @@
 import commander from "commander";
 import bytes from "bytes";
 
-import package_json from "./../package.json";
+import package_json from "./../../package.json";
 
 export class ArgsParser {
   parser : commander.Command;

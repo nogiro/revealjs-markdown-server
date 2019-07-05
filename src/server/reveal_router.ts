@@ -5,10 +5,10 @@ import puppeteer from "puppeteer";
 import express, { Request, Response, Express } from "express";
 
 import { ArgsParser } from "./args_parser";
-import { HTMLCodeModel } from "./html_code";
-import { MDIndexModel, PuppeteerHandle, MDThumbnailModelGenerator, MDThumbnailModel } from "./index_model";
-import { RevealjsHTMLModel, RevealjsMarkdownModel } from "./reveal_model";
-import { GetImgModel } from "./img_model";
+import { HTMLCodeModel } from "./model/html_code";
+import { MDIndexModel, PuppeteerHandle, MDThumbnailModelGenerator, MDThumbnailModel } from "./model/index_model";
+import { RevealjsHTMLModel, RevealjsMarkdownModel } from "./model/reveal_model";
+import { GetImgModel } from "./model/img_model";
 
 import { js_extname, css_extname, view_path, label_key, md_path, thumbnail_path, img_path } from "./utils";
 

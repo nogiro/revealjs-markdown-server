@@ -5,11 +5,11 @@ import {
   md_extname,
   label_key,
   md_path,
-} from "./utils";
+} from "./../utils";
+
+import { RevealParameters, RequiredByRevealjsParameters, generate_parameters } from "./../parameters";
 
 import { HTMLCodeModel } from "./html_code";
-
-import { RevealParameters, RequiredByRevealjsParameters, generate_parameters } from "./parameters";
 
 interface RevealHTMLParameters extends RevealParameters {
   md_path: string;

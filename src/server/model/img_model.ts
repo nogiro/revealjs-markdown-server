@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 
-import { img_path } from "./utils";
+import { img_path } from "./../utils";
 import { HTMLCodeModel } from "./html_code";
 
 export class GetImgModel {
