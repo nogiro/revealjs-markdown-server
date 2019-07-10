@@ -17,16 +17,14 @@ type alias FilledIndexItem =
   , original: IndexItem
   }
 
-type alias Times =
-  { atime: Int
-  , mtime: Int
-  , ctime: Int
-  }
-
 type alias IndexItem =
   { label: String
   , title: String
-  , times: Times
+  , times:
+    { atime: Int
+    , mtime: Int
+    , ctime: Int
+    }
   }
 
 type alias IndexMeta =
@@ -55,12 +53,13 @@ indexItemDecoder =
     (Json.Decode.field "label" Json.Decode.string)
     (Json.Decode.field "title" Json.Decode.string)
     (Json.Decode.field "times"
-      (Json.Decode.map3 Times
+      (Json.Decode.map3 (\x1 -> \x2 -> \x3 -> { atime = x1, mtime = x2, ctime = x3 })
         (Json.Decode.field "atime" Json.Decode.int)
         (Json.Decode.field "mtime" Json.Decode.int)
         (Json.Decode.field "ctime" Json.Decode.int)
       )
     )
+
 indexInfoDecoder : Json.Decode.Decoder IndexInfo
 indexInfoDecoder =
   Json.Decode.map2 IndexInfo
