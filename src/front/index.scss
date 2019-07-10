@@ -30,7 +30,20 @@
     width: 90%;
   }
 
-  div#{&}__label {
+  div#{&}__navigator {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
   }
+
+  div#{&}__pager {
+    column-count: 3;
+    column-gap: 10px;
+    width: 150px;
+  }
+
+  div#{&}__pager-index {
+    text-align: right;
+  }
+
 }
 
