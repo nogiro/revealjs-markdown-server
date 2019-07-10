@@ -16,9 +16,13 @@ import {
   recursive_mkdir,
   load_head_chunk_from_file,
   Cache,
+  Times,
 } from "./../utils";
 
-import { RequiredByRevealjsParameters, generate_parameters } from "./../parameters";
+import {
+  RequiredByRevealjsParameters,
+  generate_parameters,
+} from "./../parameters";
 import { HTMLCodeModel } from "./html_code";
 
 const title_regexp = /(^|\n)#+ ([^\n]*)/;
@@ -31,20 +35,38 @@ async function extract_title(pathname : string): Promise<string> {
   return title;
 }
 
+interface MDIndexModelParameters {
+  config_path: string;
+  resource_path: string;
+  index_js: string;
+}
+
+interface MDIndexItemParameters extends RequiredByRevealjsParameters {
+  filename: string;
+}
+
 class MDIndexItem {
-  static from(resource_dirname: string, filename: string): Promise<MDIndexItem> {
-    const label = filename.slice(resource_dirname.length + 1).slice(0, -(md_extname.length));
+
+  static from(index_parameters: MDIndexModelParameters, filename: string): Promise<MDIndexItem> {
+    const label = filename.slice(index_parameters.resource_path.length + 1).slice(0, -(md_extname.length));
     const path = `${view_path}?${label_key}=${label}`;
+
+    const parameters = generate_parameters({
+      ...index_parameters,
+      label, query: {},
+    });
+    const times = parameters.times;
+
     return extract_title(filename)
-      .then(title => ({ label, path, title: label + ": " + title }))
-      .catch(() => ({ label, path, title: label }))
-      .then(({ label, path, title }) => new MDIndexItem(label, path, title));
+      .catch(() => label)
+      .then((title) => new MDIndexItem( label, path, title, times ));
   }
 
   private constructor(
     public readonly label: string,
     public readonly path: string,
     public readonly title: string,
+    public readonly times: Times,
   ) {}
 }
 
@@ -54,16 +76,16 @@ interface MDIndexMeta {
 }
 
 export class MDIndexModel {
-  static from(resource_dirname: string, index_js: string): Promise<MDIndexModel> {
-    return recursive_readdir(resource_dirname)
+  static from(parameters: MDIndexModelParameters): Promise<MDIndexModel> {
+    return recursive_readdir(parameters.resource_path)
       .then((files: string[]) => {
         const links_promises = files
-          .filter((filename: string) => filename.slice(-(md_extname.length)) === md_extname)
-          .map((filename: string) => MDIndexItem.from(resource_dirname, filename))
+          .filter((filename: string) => path.extname(filename) === md_extname)
+          .map((filename: string) => MDIndexItem.from(parameters, filename))
         return Promise.all(links_promises);
       })
       .then((items: MDIndexItem[]) => {
-        return new MDIndexModel({view_path, thumbnail_path}, items, index_js);
+        return new MDIndexModel({view_path, thumbnail_path}, items, parameters.index_js);
       });
   }
 
@@ -119,7 +141,7 @@ export class MDThumbnailModelGenerator {
       const thumbnail_file = path.join(this.thumbnail_root, label + thumbnail_extname);
       try {
         const thumbnail_mtime = fs.statSync(thumbnail_file).mtime.getTime();
-        if (thumbnail_mtime > parameters.mtime) {
+        if (thumbnail_mtime > parameters.times.mtime) {
           const thumbnail_data = fs.readFileSync(thumbnail_file);
           this.cache.push(html_url, thumbnail_data);
           return MDThumbnailModel.from_buffer(thumbnail_data);

@@ -14,13 +14,19 @@ main =
 type alias FilledIndexItem =
   { path: String
   , thumbnail: String
-  , label: String
-  , title: String
+  , original: IndexItem
+  }
+
+type alias Times =
+  { atime: Int
+  , mtime: Int
+  , ctime: Int
   }
 
 type alias IndexItem =
   { label: String
   , title: String
+  , times: Times
   }
 
 type alias IndexMeta =
@@ -38,18 +44,23 @@ type Model
   | ParseError
 
 fillIndexItem : IndexMeta -> IndexItem -> FilledIndexItem
-fillIndexItem meta slide =
-  { path = (meta.view_path ++ "?label=" ++ slide.label)
-  , thumbnail = (meta.thumbnail_path ++ "?label=" ++ slide.label)
-  , label = slide.label
-  , title = slide.title
+fillIndexItem meta item =
+  { path = (meta.view_path ++ "?label=" ++ item.label)
+  , thumbnail = (meta.thumbnail_path ++ "?label=" ++ item.label)
+  , original = item
   }
 
 indexItemDecoder =
-  Json.Decode.map2 IndexItem
+  Json.Decode.map3 IndexItem
     (Json.Decode.field "label" Json.Decode.string)
     (Json.Decode.field "title" Json.Decode.string)
-
+    (Json.Decode.field "times"
+      (Json.Decode.map3 Times
+        (Json.Decode.field "atime" Json.Decode.int)
+        (Json.Decode.field "mtime" Json.Decode.int)
+        (Json.Decode.field "ctime" Json.Decode.int)
+      )
+    )
 indexInfoDecoder : Json.Decode.Decoder IndexInfo
 indexInfoDecoder =
   Json.Decode.map2 IndexInfo
@@ -101,7 +112,7 @@ renderIndexItem item =
   div [ class "index__grid" ]
     [ a [ href item.path ]
       [ img [ src item.thumbnail, class "index__thumbnail" ] []
-      , div [ class "index__label" ] [ text item.title ]
+      , div [ class "index__label" ] [ text item.original.title ]
       ]
     ]
 
