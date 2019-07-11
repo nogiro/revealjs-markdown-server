@@ -6,6 +6,8 @@ import Html.Events exposing (onClick)
 import Html.Attributes exposing (href, src, class)
 import Json.Decode
 
+import Bem exposing (createB, createBE, createBEM)
+
 main =
   Browser.element { init = init, update = update, view = view, subscriptions = subscriptions }
 
@@ -98,14 +100,23 @@ type Msg =
    IncrementPagerIndex
    | DecrementPagerIndex
 
-incrementPagerIndex : IndexInfo -> Model
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+  case model of
+    ParseOk info ->
+      case msg of
+        IncrementPagerIndex -> (ParseOk (incrementPagerIndex info), Cmd.none )
+        DecrementPagerIndex -> (ParseOk (decrementPagerIndex info), Cmd.none )
+    ParseError -> (model, Cmd.none )
+
+incrementPagerIndex : IndexInfo -> IndexInfo
 incrementPagerIndex info =
-  (\amount -> ParseOk {info | meta = (updateIndexInMeta info amount)})
+  (\amount -> {info | meta = (updateIndexInMeta info amount)})
   info.meta.item_view_limit
 
-decrementPagerIndex : IndexInfo -> Model
+decrementPagerIndex : IndexInfo -> IndexInfo
 decrementPagerIndex info =
-  (\amount -> ParseOk {info | meta = (updateIndexInMeta info (0 - amount))})
+  (\amount -> {info | meta = (updateIndexInMeta info (0 - amount))})
   info.meta.item_view_limit
 
 updateIndexInMeta : IndexInfo -> Int -> IndexMeta
@@ -117,54 +128,50 @@ updateIndexInMeta info amount =
       {meta | item_view_index = a}
   ) info.meta (List.length info.slides) (info.meta.item_view_index + amount)
 
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
-  case model of
-    ParseOk info ->
-      case msg of
-        IncrementPagerIndex -> ((incrementPagerIndex info), Cmd.none )
-        DecrementPagerIndex -> ((decrementPagerIndex info), Cmd.none )
-    ParseError -> (model, Cmd.none )
-
 -- VIEW
 
 view : Model -> Html Msg
 view model =
   case model of
     ParseOk a ->
-      div [ class "index" ]
+      div (createB "index")
         [ renderIndexPager a.meta.item_view_index (List.length a.slides) a.meta.item_view_limit
-        , renderIndexList (List.map (fillIndexItem a.meta) a.slides)
+        , renderIndexList a.meta (List.map (fillIndexItem a.meta) a.slides)
         ]
     ParseError ->
       div [] [ text "json parse error" ]
 
 renderIndexPager : Int -> Int -> Int -> Html Msg
 renderIndexPager index max limit =
-  div [ class "index__navigator" ]
-    [ div [ class "index__navigator-spacer" ] []
-    , div [ class "index__pager" ]
-      [ button [ onClick DecrementPagerIndex, class "index__pager-button", class "index__pager-button--prev" ] [ text "<" ]
-      , div [ class "index__pager-index " ] [ text ((String.fromInt index) ++ "/" ++ (String.fromInt max))]
-      , button [ onClick IncrementPagerIndex, class "index__pager-button", class "index__pager-button--next" ] [ text ">" ]
+  div ( createBE "index" "navigator" )
+    [ div ( createBE "index" "navigator-spacer" ) []
+    , div ( createBE "index" "pager" )
+      [ button (List.append [ onClick DecrementPagerIndex ] (createBEM "index" "pager-button" "prev")) [ text "<" ]
+      , div (createBE "index" "pager-index") [ text ((String.fromInt index) ++ "/" ++ (String.fromInt max))]
+      , button (List.append [ onClick IncrementPagerIndex ] (createBEM "index" "pager-button" "next")) [ text ">" ]
       ]
-    , div [ class "index__navigator-spacer" ] []
+    , div (createBE "index" "navigator-spacer") []
     ]
 
-renderIndexList : List FilledIndexItem -> Html Msg
-renderIndexList lst =
+renderIndexList : IndexMeta -> List FilledIndexItem -> Html Msg
+renderIndexList meta lst =
   case (List.length lst) of
     0 ->
       div [] [ text "no resources" ]
     _ ->
-      div [ class "index__container" ] (List.map (\l -> renderIndexItem l) lst)
+      div (createBE "index" "container")
+      ( lst
+        |> List.drop meta.item_view_index
+        |> List.take meta.item_view_limit
+        |> List.map (\l -> renderIndexItem l)
+      )
 
 renderIndexItem : FilledIndexItem -> Html Msg
 renderIndexItem item =
   div [ class "index__grid" ]
     [ a [ href item.path ]
-      [ img [ src item.thumbnail, class "index__thumbnail" ] []
-      , div [ class "index__label" ] [ text item.original.title ]
+      [ img (List.append [ src item.thumbnail ] (createBE "index" "thumbnail")) []
+      , div (createBE "index" "label") [ text item.original.title ]
       ]
     ]
 
