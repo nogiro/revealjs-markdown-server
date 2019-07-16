@@ -32,7 +32,7 @@
 
   div#{&}__navigator {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(5, 1fr);
   }
 
   div#{&}__pager {
@@ -43,6 +43,12 @@
 
   div#{&}__pager-index {
     text-align: right;
+  }
+
+
+  div#{&}__filter {
+    display: grid;
+    grid-template-columns: 1.4em auto;
   }
 
 }
