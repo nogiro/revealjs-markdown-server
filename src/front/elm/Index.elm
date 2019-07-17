@@ -53,7 +53,6 @@ createIndexMeta view_path thumbnail_path item_view_limit =
 type alias IndexInfo =
   { meta: IndexMeta
   , slides: List IndexItem
-  , filterdSlides: List IndexItem
   , filter: IndexFilter
   }
 
@@ -61,7 +60,6 @@ createIndexInfo : IndexMeta -> (List IndexItem) -> IndexInfo
 createIndexInfo meta slides =
   { meta = meta
   , slides = slides
-  , filterdSlides = slides
   , filter = Nothing
   }
 
@@ -121,7 +119,9 @@ update msg model =
       case msg of
         IncrementPagerIndex -> (ParseOk (updateOffsetInInfo info (incrementAmount info)), Cmd.none )
         DecrementPagerIndex -> (ParseOk (updateOffsetInInfo info (decrementAmount info)), Cmd.none )
-        UpdateFilter a -> (ParseOk (updateFilter info a), Cmd.none )
+        UpdateFilter a ->
+          let updatedInfo = updateFilter info a
+          in (ParseOk (updateOffsetInInfo updatedInfo (adjustAmount updatedInfo)), Cmd.none )
     ParseError -> (model, Cmd.none)
 
 incrementAmount : IndexInfo -> Int
@@ -130,26 +130,44 @@ incrementAmount info =
 
 decrementAmount : IndexInfo -> Int
 decrementAmount info =
-  0 - info.meta.item_view_limit
+  negate info.meta.item_view_limit
+
+adjustAmount : IndexInfo -> Int
+adjustAmount info =
+  let numOfSlides = List.length (filterSlides info.filter info.slides)
+      tick = info.meta.item_view_limit
+  in
+    if numOfSlides < info.meta.item_view_index then
+      ((numOfSlides - 1) // tick - info.meta.item_view_index // tick) * tick
+    else
+      0
 
 updateOffsetInInfo : IndexInfo -> Int -> IndexInfo
 updateOffsetInInfo info amount =
-  (\meta -> \max -> \a ->
-    if (a < 0) || (max <= a) then
+  let
+    meta = info.meta
+    limit =  List.length (filterSlides info.filter info.slides)
+    next =  info.meta.item_view_index + amount
+  in
+    if (next < 0) || (limit <= next) then
       info
     else
-      {info | meta = {meta | item_view_index = a}}
-  ) info.meta (List.length info.filterdSlides) (info.meta.item_view_index + amount)
+      {info | meta = {meta | item_view_index = next}}
 
 updateFilter : IndexInfo -> String -> IndexInfo
 updateFilter info filter =
-  (\updatedFilter ->
-    { info | filter = updatedFilter, filterdSlides = updateFilteredSlides info.slides updatedFilter}
-  ) (parseFilter filter)
+  let updatedFilter = parseFilter filter
+  in { info | filter = updatedFilter }
 
-updateFilteredSlides : (List IndexItem) -> IndexFilter -> (List IndexItem)
-updateFilteredSlides slides updatedFilter =
+filterSlides : IndexFilter -> (List IndexItem) -> (List IndexItem)
+filterSlides updatedFilter slides =
   List.filter (applyFilter updatedFilter) slides
+
+takeSlides : IndexInfo -> (List IndexItem) -> (List IndexItem)
+takeSlides info slides =
+  slides
+    |> List.drop info.meta.item_view_index
+    |> List.take info.meta.item_view_limit
 
 applyFilter : IndexFilter -> IndexItem -> Bool
 applyFilter maybeFilter item =
@@ -158,8 +176,8 @@ applyFilter maybeFilter item =
     Just filter ->
       applyStringListFilter item .label filter.label
       && applyStringListFilter item .title filter.title
-      && applyTimeFilter item (\a -> .mtime (.times a)) (<) filter.until
-      && applyTimeFilter item (\a -> .mtime (.times a)) (>) filter.since
+      && applyTimeFilter item (\a -> a |> .times |> .mtime) (<) filter.until
+      && applyTimeFilter item (\a -> a |> .times |> .mtime) (>) filter.since
 
 applyStringListFilter : IndexItem -> (IndexItem -> String) -> List String -> Bool
 applyStringListFilter item extractor searches =
@@ -201,51 +219,37 @@ parseMeta pattern target =
   case (Regex.fromString pattern) of
     Just regex ->
       if List.member pattern metaPattern then
-        List.map (\a -> a.submatches) (Regex.find regex target)
+        List.map .submatches (Regex.find regex target)
           |> List.concat
           |> List.filterMap identity
       else
         []
     Nothing -> []
 
-type alias DateParts =
-  { year: Int
-  , month: Time.Month
-  , day: Int
-  }
-
-createDateParts : List Int -> Maybe DateParts
+createDateParts : List Int -> Maybe Time.Extra.Parts
 createDateParts xs =
-  case checkListCount 2 (<) xs of
+  case checkListCount 3 (<=) xs of
     Nothing -> Nothing
-    _ -> (\maybeyear -> \maybemonth -> \maybeday ->
-        case maybeyear of
-          Nothing -> Nothing
-          Just year -> case maybemonth of
-            Nothing -> Nothing
-            Just intmonth -> case maybeday of
-              Nothing -> Nothing
-              Just day -> case toMonthFromInt intmonth of
-                Nothing -> Nothing
-                Just month -> Just (DateParts year month day)
-      )
-      (List.head xs)
-      (Maybe.andThen List.head (List.tail xs))
-      (Maybe.andThen List.head (Maybe.andThen List.tail (List.tail xs)))
+    _ ->
+      let
+        maybe_year  = List.head xs
+        maybe_month = List.tail xs |> Maybe.andThen List.head |> Maybe.andThen toMonthFromInt
+        maybe_day   = List.tail xs |> Maybe.andThen List.tail |> Maybe.andThen List.head
+      in
+        case (maybe_year, maybe_month, maybe_day) of
+          (Nothing, _, _) -> Nothing
+          (_, Nothing, _) -> Nothing
+          (_, _, Nothing) -> Nothing
+          (Just year, Just month, Just day) ->
+            Just (Time.Extra.Parts year month day 0 0 0 0)
 
 parseDateString: String -> Maybe Time.Posix
 parseDateString str =
   String.split "-" str
-    |> checkListCount 2 (<)
-    |> Maybe.map (\a -> List.filterMap String.toInt a)
-    |> (\a -> case a of
-        Nothing -> Nothing
-        Just b -> createDateParts b
-      )
-    |> (\a -> case a of
-        Nothing -> Nothing
-        Just b -> Just (Time.Extra.partsToPosix Time.utc (Time.Extra.Parts b.year b.month b.day 0 0 0 0))
-      )
+    |> checkListCount 3 (<=)
+    |> Maybe.map (List.filterMap String.toInt)
+    |> Maybe.andThen createDateParts
+    |> Maybe.map (Time.Extra.partsToPosix Time.utc)
 
 parseDate: String -> String -> List Int
 parseDate pattern str =
@@ -282,7 +286,7 @@ parseLabel target =
     Just regex -> Regex.split regex target
       |> String.join " "
       |> String.split " "
-      |> List.filter (\a -> a /= "")
+      |> List.filter ((/=) "")
     Nothing -> []
 
 parseFilter : String -> IndexFilter
@@ -299,11 +303,13 @@ parseFilter str =
 view : Model -> Html Msg
 view model =
   case model of
-    ParseOk a ->
-      div (createB "index")
-        [ renderIndexPager a.meta.item_view_index (List.length a.filterdSlides) a.meta.item_view_limit
-        , renderIndexList a.meta (List.map (fillIndexItem a.meta) a.filterdSlides)
-        ]
+    ParseOk info ->
+      let filteredSlides = filterSlides info.filter info.slides
+      in
+        div (createB "index")
+          [ renderIndexPager info.meta.item_view_index (List.length filteredSlides) info.meta.item_view_limit
+          , renderIndexList info.meta (List.map (fillIndexItem info.meta) (takeSlides info filteredSlides))
+          ]
     ParseError ->
       div [] [ text "json parse error" ]
 
@@ -332,11 +338,7 @@ renderIndexList meta lst =
       div [] [ text "no resources" ]
     _ ->
       div (createBE "index" "container")
-      ( lst
-        |> List.drop meta.item_view_index
-        |> List.take meta.item_view_limit
-        |> List.map (\l -> renderIndexItem l)
-      )
+        (List.map renderIndexItem lst)
 
 renderIndexItem : FilledIndexItem -> Html Msg
 renderIndexItem item =
