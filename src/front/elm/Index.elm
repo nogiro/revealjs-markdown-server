@@ -1,15 +1,15 @@
 module Index exposing (main)
 
 import Browser
-import Html exposing (Html, text, div, button, a, ul, li, img, input, select, option)
-import Html.Events exposing (onClick, onInput, on)
-import Html.Attributes exposing (href, src, class)
+import Html exposing (Html)
+import Html.Events
+import Html.Attributes
 import Json.Decode
 import Regex
 import Time
 import Time.Extra
 
-import Bem exposing (createB, createBE, createBEM)
+import Bem
 
 main =
   Browser.element { init = init, update = update, view = view, subscriptions = subscriptions }
@@ -364,16 +364,16 @@ view model =
     ParseOk info ->
       let displaySlides = filterSlides info.filter info.slides |> sortSlides info.order
       in
-        div (createB "index")
+        Html.div (Bem.createB "index")
           [ renderIndexNavigator info.meta.item_view_index (List.length displaySlides) info.meta.item_view_limit
           , renderIndexList info.meta (List.map (fillIndexItem info.meta) (takeSlides info displaySlides))
           ]
     ParseError ->
-      div [] [ text "json parse error" ]
+      Html.div [] [ Html.text "json parse error" ]
 
 renderIndexNavigator : Int -> Int -> Int -> Html Msg
 renderIndexNavigator index max limit =
-  div ( createBE "index" "navigator" )
+  Html.div ( Bem.createBE "index" "navigator" )
     [ renderIndexSorter
     , renderIndexPager index max
     , renderIndexFilter
@@ -381,47 +381,47 @@ renderIndexNavigator index max limit =
 
 onChange : (String -> msg) -> Html.Attribute msg
 onChange handler =
-    on "change" (Json.Decode.map handler Html.Events.targetValue)
+    Html.Events.on "change" (Json.Decode.map handler Html.Events.targetValue)
 
 renderIndexSorter : Html Msg
 renderIndexSorter =
-  div ( List.append ( createBE "index" "navigator-element" ) ( createBE "index" "sorter" ) )
-    [ select (List.append [ onChange (\a -> UpdateOrder a) ] (createBE "index" "sorter-menu"))
+  Html.div ( List.append ( Bem.createBE "index" "navigator-element" ) ( Bem.createBE "index" "sorter" ) )
+    [ Html.select (List.append [ onChange (\a -> UpdateOrder a) ] (Bem.createBE "index" "sorter-menu"))
       ( List.map .value indexOrders
-        |> List.map (\order -> option [ Html.Attributes.value order ] [ text order ])
+        |> List.map (\order -> Html.option [ Html.Attributes.value order ] [ Html.text order ])
       )
     ]
 
 renderIndexPager : Int -> Int -> Html Msg
 renderIndexPager index max =
-  div ( List.append ( createBE "index" "navigator-element" ) ( createBE "index" "pager" ) )
-    [ button (List.append [ onClick DecrementPagerIndex ] (createBEM "index" "pager-button" "prev")) [ text "<" ]
-    , div (createBE "index" "pager-index") [ text ((String.fromInt index) ++ "/" ++ (String.fromInt max))]
-    , button (List.append [ onClick IncrementPagerIndex ] (createBEM "index" "pager-button" "next")) [ text ">" ]
+  Html.div ( List.append ( Bem.createBE "index" "navigator-element" ) ( Bem.createBE "index" "pager" ) )
+    [ Html.button (List.append [ Html.Events.onClick DecrementPagerIndex ] (Bem.createBEM "index" "pager-button" "prev")) [ Html.text "<" ]
+    , Html.div (Bem.createBE "index" "pager-index") [ Html.text ((String.fromInt index) ++ "/" ++ (String.fromInt max))]
+    , Html.button (List.append [ Html.Events.onClick IncrementPagerIndex ] (Bem.createBEM "index" "pager-button" "next")) [ Html.text ">" ]
     ]
 
 renderIndexFilter : Html Msg
 renderIndexFilter =
-  div ( List.append ( createBE "index" "navigator-element" ) (createBE "index" "filter") )
-    [ div [] [ text "🔍" ]
-    , input [ onInput UpdateFilter ] []
+  Html.div ( List.append ( Bem.createBE "index" "navigator-element" ) (Bem.createBE "index" "filter") )
+    [ Html.div [] [ Html.text "🔍" ]
+    , Html.input [ Html.Events.onInput UpdateFilter ] []
     ]
 
 renderIndexList : IndexMeta -> List FilledIndexItem -> Html Msg
 renderIndexList meta lst =
   case (List.length lst) of
     0 ->
-      div [] [ text "no resources" ]
+      Html.div [] [ Html.text "no resources" ]
     _ ->
-      div (createBE "index" "container")
+      Html.div (Bem.createBE "index" "container")
         (List.map renderIndexItem lst)
 
 renderIndexItem : FilledIndexItem -> Html Msg
 renderIndexItem item =
-  div [ class "index__grid" ]
-    [ a [ href item.path ]
-      [ img (List.append [ src item.thumbnail ] (createBE "index" "thumbnail")) []
-      , div (createBE "index" "label") [ text item.original.title ]
+  Html.div [ Html.Attributes.class "index__grid" ]
+    [ Html.a [ Html.Attributes.href item.path ]
+      [ Html.img (List.append [ Html.Attributes.src item.thumbnail ] (Bem.createBE "index" "thumbnail")) []
+      , Html.div (Bem.createBE "index" "label") [ Html.text item.original.title ]
       ]
     ]
 
