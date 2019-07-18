@@ -1,8 +1,8 @@
 module Index exposing (main)
 
 import Browser
-import Html exposing (Html, text, div, button, a, ul, li, img, input)
-import Html.Events exposing (onClick, onInput)
+import Html exposing (Html, text, div, button, a, ul, li, img, input, select, option)
+import Html.Events exposing (onClick, onInput, on)
 import Html.Attributes exposing (href, src, class)
 import Json.Decode
 import Regex
@@ -32,6 +32,10 @@ type alias IndexItem =
     }
   }
 
+getTimeFromIndexItem : IndexItem -> Int
+getTimeFromIndexItem item =
+  item |> .times |> .mtime
+
 type alias IndexMeta =
   { view_path: String
   , thumbnail_path: String
@@ -46,7 +50,7 @@ createIndexMeta view_path thumbnail_path item_view_limit =
   , item_view_limit =
     case item_view_limit of
       Just x -> x
-      _ -> 10
+      _ -> 12
   , item_view_index = 0
   }
 
@@ -54,13 +58,45 @@ type alias IndexInfo =
   { meta: IndexMeta
   , slides: List IndexItem
   , filter: IndexFilter
+  , order: IndexOrder
   }
+
+type IndexOrder
+  = DescendTime
+  | AscendTime
+  | DescendTitle
+  | AscendTitle
+  | DescendLabel
+  | AscendLabel
+
+indexOrders =
+  [ { value = "Time ↓", orderType = DescendTime }
+  , { value = "Time ↑", orderType = AscendTime }
+  , { value = "Title ↓", orderType = DescendTitle }
+  , { value = "Title ↑", orderType = AscendTitle }
+  , { value = "Label ↓", orderType = DescendLabel }
+  , { value = "Label ↑", orderType = AscendLabel }
+  ]
+
+mapOrder : String -> Maybe IndexOrder
+mapOrder str =
+  List.foldl
+    (\cur -> \acc -> case acc of
+      Just _ -> acc
+      Nothing ->
+        if cur.value == str then
+          Just cur.orderType
+        else
+          Nothing
+    )
+    Nothing indexOrders
 
 createIndexInfo : IndexMeta -> (List IndexItem) -> IndexInfo
 createIndexInfo meta slides =
   { meta = meta
   , slides = slides
   , filter = Nothing
+  , order = DescendTime
   }
 
 type Model
@@ -111,17 +147,22 @@ type Msg =
    IncrementPagerIndex
    | DecrementPagerIndex
    | UpdateFilter String
+   | UpdateOrder String
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
   case model of
     ParseOk info ->
       case msg of
-        IncrementPagerIndex -> (ParseOk (updateOffsetInInfo info (incrementAmount info)), Cmd.none )
-        DecrementPagerIndex -> (ParseOk (updateOffsetInInfo info (decrementAmount info)), Cmd.none )
+        IncrementPagerIndex -> ( ParseOk (updateOffsetInInfo info (incrementAmount info)), Cmd.none )
+        DecrementPagerIndex -> ( ParseOk (updateOffsetInInfo info (decrementAmount info)), Cmd.none )
         UpdateFilter a ->
           let updatedInfo = updateFilter info a
-          in (ParseOk (updateOffsetInInfo updatedInfo (adjustAmount updatedInfo)), Cmd.none )
+          in ( ParseOk (updateOffsetInInfo updatedInfo (adjustAmount updatedInfo)), Cmd.none )
+        UpdateOrder a ->
+          case (mapOrder a) of
+            Just updatedOrder -> ( ParseOk {info | order = updatedOrder}, Cmd.none )
+            Nothing -> ( ParseOk info, Cmd.none )
     ParseError -> (model, Cmd.none)
 
 incrementAmount : IndexInfo -> Int
@@ -163,6 +204,23 @@ filterSlides : IndexFilter -> (List IndexItem) -> (List IndexItem)
 filterSlides updatedFilter slides =
   List.filter (applyFilter updatedFilter) slides
 
+sortSlides : IndexOrder -> (List IndexItem) -> (List IndexItem)
+sortSlides order slides =
+  case order of
+    AscendTime -> List.sortBy getTimeFromIndexItem slides
+    DescendTime -> List.sortWith (flippedComparisonBy getTimeFromIndexItem) slides
+    AscendTitle -> List.sortBy .title slides
+    DescendTitle -> List.sortWith (flippedComparisonBy .title) slides
+    AscendLabel -> List.sortBy .label slides
+    DescendLabel -> List.sortWith (flippedComparisonBy .label) slides
+
+flippedComparisonBy : (a -> comparable) -> a -> a -> Order
+flippedComparisonBy by a b =
+  case compare (by a) (by b) of
+    LT -> GT
+    EQ -> EQ
+    GT -> LT
+
 takeSlides : IndexInfo -> (List IndexItem) -> (List IndexItem)
 takeSlides info slides =
   slides
@@ -176,8 +234,8 @@ applyFilter maybeFilter item =
     Just filter ->
       applyStringListFilter item .label filter.label
       && applyStringListFilter item .title filter.title
-      && applyTimeFilter item (\a -> a |> .times |> .mtime) (<) filter.until
-      && applyTimeFilter item (\a -> a |> .times |> .mtime) (>) filter.since
+      && applyTimeFilter item getTimeFromIndexItem (<) filter.until
+      && applyTimeFilter item getTimeFromIndexItem (>) filter.since
 
 applyStringListFilter : IndexItem -> (IndexItem -> String) -> List String -> Bool
 applyStringListFilter item extractor searches =
@@ -304,32 +362,50 @@ view : Model -> Html Msg
 view model =
   case model of
     ParseOk info ->
-      let filteredSlides = filterSlides info.filter info.slides
+      let displaySlides = filterSlides info.filter info.slides |> sortSlides info.order
       in
         div (createB "index")
-          [ renderIndexPager info.meta.item_view_index (List.length filteredSlides) info.meta.item_view_limit
-          , renderIndexList info.meta (List.map (fillIndexItem info.meta) (takeSlides info filteredSlides))
+          [ renderIndexNavigator info.meta.item_view_index (List.length displaySlides) info.meta.item_view_limit
+          , renderIndexList info.meta (List.map (fillIndexItem info.meta) (takeSlides info displaySlides))
           ]
     ParseError ->
       div [] [ text "json parse error" ]
 
-renderIndexPager : Int -> Int -> Int -> Html Msg
-renderIndexPager index max limit =
+renderIndexNavigator : Int -> Int -> Int -> Html Msg
+renderIndexNavigator index max limit =
   div ( createBE "index" "navigator" )
-    ( List.intersperse
-      (div ( createBE "index" "navigator-spacer" ) [])
-      [ div ( createBE "index" "sorter" ) []
-      , div ( createBE "index" "pager" )
-        [ button (List.append [ onClick DecrementPagerIndex ] (createBEM "index" "pager-button" "prev")) [ text "<" ]
-        , div (createBE "index" "pager-index") [ text ((String.fromInt index) ++ "/" ++ (String.fromInt max))]
-        , button (List.append [ onClick IncrementPagerIndex ] (createBEM "index" "pager-button" "next")) [ text ">" ]
-        ]
-      , div (createBE "index" "filter")
-        [ div [] [ text "🔍" ]
-        , input [ onInput UpdateFilter ] []
-        ]
-      ]
-    )
+    [ renderIndexSorter
+    , renderIndexPager index max
+    , renderIndexFilter
+    ]
+
+onChange : (String -> msg) -> Html.Attribute msg
+onChange handler =
+    on "change" (Json.Decode.map handler Html.Events.targetValue)
+
+renderIndexSorter : Html Msg
+renderIndexSorter =
+  div ( List.append ( createBE "index" "navigator-element" ) ( createBE "index" "sorter" ) )
+    [ select (List.append [ onChange (\a -> UpdateOrder a) ] (createBE "index" "sorter-menu"))
+      ( List.map .value indexOrders
+        |> List.map (\order -> option [ Html.Attributes.value order ] [ text order ])
+      )
+    ]
+
+renderIndexPager : Int -> Int -> Html Msg
+renderIndexPager index max =
+  div ( List.append ( createBE "index" "navigator-element" ) ( createBE "index" "pager" ) )
+    [ button (List.append [ onClick DecrementPagerIndex ] (createBEM "index" "pager-button" "prev")) [ text "<" ]
+    , div (createBE "index" "pager-index") [ text ((String.fromInt index) ++ "/" ++ (String.fromInt max))]
+    , button (List.append [ onClick IncrementPagerIndex ] (createBEM "index" "pager-button" "next")) [ text ">" ]
+    ]
+
+renderIndexFilter : Html Msg
+renderIndexFilter =
+  div ( List.append ( createBE "index" "navigator-element" ) (createBE "index" "filter") )
+    [ div [] [ text "🔍" ]
+    , input [ onInput UpdateFilter ] []
+    ]
 
 renderIndexList : IndexMeta -> List FilledIndexItem -> Html Msg
 renderIndexList meta lst =
