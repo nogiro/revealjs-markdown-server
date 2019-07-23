@@ -1,13 +1,22 @@
+import path from "path";
+
 import commander from "commander";
 import bytes from "bytes";
 
 import package_json from "./../../package.json";
 
 export class ArgsParser {
-  parser : commander.Command;
+  public readonly sub_directory: string;
+  public readonly resource_directory: string;
+  public readonly port: number;
+  public readonly config: string;
+  public readonly cache_bytes: number;
+  public readonly puppeteer_timeout: number;
+  public readonly puppeteer_wait_interval: number;
+  public readonly puppeteer_wait_limit: number;
 
   constructor(argv : string[]) {
-    this.parser = commander
+    const parser = commander
       .version(package_json.version)
       .option("-s, --sub-directory <sub-directory>", "change sub directory", "/")
       .option("-d, --resource <resource>", "change resource directory", "resource")
@@ -18,19 +27,27 @@ export class ArgsParser {
       .option("--puppeteer_wait_interval <puppeteer-wait-interval>", "change puppeteer index transition detection interval [msec]", 100)
       .option("--puppeteer_wait_limit <puppeteer-wait-limit>", "change puppeteer index transition detection limit", 10)
       .parse(argv);
+
+    this.sub_directory = parser.subDirectory;
+    if (path.isAbsolute(parser.resource)) {
+      this.resource_directory = parser.resource;
+    } else {
+      this.resource_directory = path.join(process.cwd(), parser.resource);
+    }
+    this.port = parser.port;
+    this.config = parser.config;
+
+    this.puppeteer_timeout = parser.puppeteerTimeout;
+    this.puppeteer_wait_interval = parser.puppeteerWaitInterval;
+    this.puppeteer_wait_limit = parser.puppeteerWaitLimit;
+
+    const tmp_bytes = bytes(parser.cacheBytes);
+    if (typeof tmp_bytes === "string") {
+      this.cache_bytes = 1024 * 1024 * 1024;
+    } else {
+      this.cache_bytes = tmp_bytes;
+    }
   }
 
-  get sub_directory(): string {return this.parser.subDirectory}
-  get resource_directory(): string {return this.parser.resource}
-  get port(): number {return this.parser.port}
-  get config(): string {return this.parser.config}
-  get cache_bytes(): number {
-    const tmp_bytes = bytes(this.parser.cacheBytes);
-    if (typeof tmp_bytes === "string") {return 1024 * 1024 * 1024}
-    return tmp_bytes;
-  }
-  get puppeteer_timeout(): number {return this.parser.puppeteerTimeout}
-  get puppeteer_wait_interval(): number {return this.parser.puppeteerWaitInterval}
-  get puppeteer_wait_limit(): number {return this.parser.puppeteerWaitLimit}
 }
 

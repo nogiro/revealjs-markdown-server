@@ -9,8 +9,7 @@ import { HTMLCodeModel } from "./model/html_code";
 import {
   MDIndexModel,
   PuppeteerHandle,
-  MDThumbnailModelGenerator,
-  MDThumbnailModel
+  MDThumbnailModelGenerator
 } from "./model/index_model";
 import { RevealjsHTMLModel, RevealjsMarkdownModel } from "./model/reveal_model";
 import { GetImgModel } from "./model/img_model";
