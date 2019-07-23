@@ -24,7 +24,7 @@ $ docker run -v /path/to/resource:/resource -p 3000:3000 <image id>
 ```
 
 ## screenshot of index
-It take a screenshot after `seq 2 10 | sed 's%.*%echo "## test &" > resource/md/&.md%e'`.
+`npm run build-scripts-take-index-screenshot && npm run take-index-screenshot`. See [scripts/create-dummy.sh](scripts/create-dummy.sh).
 
 ![](README/screenshot.png)
 

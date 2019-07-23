@@ -40,6 +40,8 @@
     "build-server": "parcel build --target node src/app.ts",
     "build-index-js": "parcel build src/front/index.js",
     "build-index-css": "parcel build src/front/index.scss",
+    "build-scripts-take-index-screenshot": "parcel build --target node src/scripts/take-index-screenshot.ts",
+    "take-index-screenshot": "./scripts/create-dummy.sh | xargs -n 1 node dist/take-index-screenshot.js -d",
     "start": "node dist/app.js",
     "type-check": "tsc --noEmit --resolveJsonModule --watch"
   }
