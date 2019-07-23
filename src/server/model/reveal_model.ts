@@ -24,7 +24,7 @@ export class RevealjsHTMLModel {
       return HTMLCodeModel.from(404);
     }
 
-    const md_file: string = path.join(process.cwd(), params.resource_path, params.label + md_extname);
+    const md_file: string = path.join(params.resource_path, md_path, params.label + md_extname);
     if (! fs.statSync(md_file).isFile()) {
       return HTMLCodeModel.from(404);
     }
@@ -51,7 +51,7 @@ export class RevealjsMarkdownModel {
       if (referer_label !== label) {throw ""}
     } catch (err) {return HTMLCodeModel.from(503)}
 
-    return new RevealjsMarkdownModel(path.join(process.cwd(), resource_path, label + md_extname));
+    return new RevealjsMarkdownModel(path.join(resource_path, md_path, label + md_extname));
   }
 
   private constructor(private _md_diskpath: string) {}

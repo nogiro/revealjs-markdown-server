@@ -137,3 +137,18 @@ export class Cache {
   }
 }
 
+export interface Times {
+  atime: number;
+  mtime: number;
+  ctime: number;
+}
+
+export function times_from(filename: string): Times {
+  const stat = fs.statSync(filename);
+  return {
+    atime: stat.atime.getTime(),
+    mtime: stat.mtime.getTime(),
+    ctime: stat.ctime.getTime(),
+  };
+}
+

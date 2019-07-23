@@ -8,6 +8,9 @@ import {
   md_extname,
   yaml_extname,
   css_extname,
+  md_path,
+  Times,
+  times_from,
 } from "./utils";
 
 export interface RevealParameters {
@@ -16,15 +19,21 @@ export interface RevealParameters {
   "separator-vertical": string;
   options: object;
   "custom-css"?: string;
-  mtime: number;
+  times: Times;
 }
 
-const default_parameters: RevealParameters = {
-  "theme": "black",
-  "separator": "^\\n\\n\\n",
-  "separator-vertical": "^\\n\\n",
-  options: {},
-  mtime: 0,
+function generate_default_parameters(): RevealParameters {
+  return {
+    "theme": "black",
+    "separator": "^\\n\\n\\n",
+    "separator-vertical": "^\\n\\n",
+    options: {},
+    times: (() => ({
+      atime: 0,
+      mtime: 0,
+      ctime: 0,
+    }))()
+  };
 };
 
 export interface RequiredByRevealjsParameters {
@@ -35,13 +44,12 @@ export interface RequiredByRevealjsParameters {
 };
 
 export function generate_parameters({config_path, resource_path, label, query}: RequiredByRevealjsParameters): RevealParameters {
-  let ret = {...default_parameters};
-  const md_file: string = path.join(process.cwd(), resource_path, label + md_extname);
-  const yaml_file: string = path.join(process.cwd(), resource_path, label + yaml_extname);
+  let ret = {...generate_default_parameters()};
+  const md_file: string = path.join(resource_path, md_path, label + md_extname);
+  const yaml_file: string = path.join(resource_path, md_path, label + yaml_extname);
 
   try {
-    const mtime = fs.statSync(md_file).mtime.getTime();
-    ret.mtime = mtime;
+    ret.times = times_from(md_file);
   } catch (err) {
     console.error(`${label}: file load error.`, err.message);
   }
@@ -60,15 +68,15 @@ export function generate_parameters({config_path, resource_path, label, query}: 
 }
 
 function load_file_parameters(label: string, ret: RevealParameters, config_path: string): RevealParameters {
-  const mtime = fs.statSync(config_path).mtime.getTime();
+  const times = times_from(config_path);
   const config_parameters = yaml.parse(fs.readFileSync(config_path, 'utf8'));
-  return load_parameters(label, ret, config_parameters, mtime);
+  return load_parameters(label, ret, config_parameters, times);
 }
 
 const module_revealjs_path = path.join(__dirname, "..", "node_modules", "reveal.js");
 const module_revealjs_css_theme_path = path.join(module_revealjs_path, "css", "theme");
 
-function load_parameters(label: string, default_values: RevealParameters, params: any, mtime?: number): RevealParameters {
+function load_parameters(label: string, default_values: RevealParameters, params: any, times?: Times): RevealParameters {
   let ret = {...default_values};
   if (typeof params.theme === "string") {
     const theme_css_path = path.join(module_revealjs_css_theme_path, params.theme + css_extname);
@@ -97,8 +105,14 @@ function load_parameters(label: string, default_values: RevealParameters, params
     }
   }
 
-  if (typeof mtime !== "undefined" && mtime > ret.mtime) {
-    ret.mtime = mtime;
+  if (typeof times !== "undefined" && times.atime > ret.times.atime) {
+    ret.times.atime = times.atime;
+  }
+  if (typeof times !== "undefined" && times.mtime > ret.times.mtime) {
+    ret.times.mtime = times.mtime;
+  }
+  if (typeof times !== "undefined" && times.ctime > ret.times.ctime) {
+    ret.times.ctime = times.ctime;
   }
   return ret;
 }

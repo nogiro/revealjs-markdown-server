@@ -6,7 +6,11 @@ import express, { Request, Response, Express } from "express";
 
 import { ArgsParser } from "./args_parser";
 import { HTMLCodeModel } from "./model/html_code";
-import { MDIndexModel, PuppeteerHandle, MDThumbnailModelGenerator, MDThumbnailModel } from "./model/index_model";
+import {
+  MDIndexModel,
+  PuppeteerHandle,
+  MDThumbnailModelGenerator
+} from "./model/index_model";
 import { RevealjsHTMLModel, RevealjsMarkdownModel } from "./model/reveal_model";
 import { GetImgModel } from "./model/img_model";
 
@@ -15,7 +19,7 @@ import { js_extname, css_extname, view_path, label_key, md_path, thumbnail_path,
 export class RevealRouter {
   private port: number;
   private sub_directory: string;
-  private resource_directory: string;
+  private resource_path: string;
   private config_path: string;
   private index_js_name: string;
   private index_css_name: string;
@@ -24,7 +28,7 @@ export class RevealRouter {
   constructor(browser: puppeteer.Browser, args: ArgsParser) {
     this.port = args.port;
     this.sub_directory = ("/" + args.sub_directory + "/").replace(/^\/*/, "/").replace(/\/*$/, "/");
-    this.resource_directory = path.join(args.resource_directory, md_path);
+    this.resource_path = args.resource_directory;
     this.config_path = args.config;
     const puppeteer_handle: PuppeteerHandle = {
       browser,
@@ -43,6 +47,17 @@ export class RevealRouter {
     this.register_revealjs_resources(app);
     this.register_index(app);
     this.register_page(app);
+  }
+
+  private get_members() {
+    return {
+      port: this.port,
+      sub_directory: this.sub_directory,
+      resource_path: this.resource_path,
+      config_path: this.config_path,
+      index_js_name: this.index_js_name,
+      index_css_name: this.index_css_name,
+    };
   }
 
   private register_revealjs_resources(app: Express) : void {
@@ -73,7 +88,12 @@ export class RevealRouter {
 
   private route_get_index(req: Request, res: Response) : void {
     const index_js = this.sub_directory + this.index_js_name;
-    MDIndexModel.from(this.resource_directory, index_js)
+    const data = Object.assign(
+      this.get_members(),
+      {index_js},
+    );
+
+    MDIndexModel.from(data)
       .then(model => {
         res.render("./index.ejs", model);
       })
@@ -104,14 +124,10 @@ export class RevealRouter {
   private route_get_thumbnail(req: Request, res: Response) : void {
     const label = req.query[label_key];
 
-    const data = {
-      config_path: this.config_path,
-      resource_path: this.resource_directory,
-      port: this.port,
-      sub_directory: this.sub_directory,
-      label,
-      query: {},
-    };
+    const data = Object.assign(
+      this.get_members(),
+      { label, query: {} },
+    );
 
     this.thumbnail_generator.generate(data)
       .then(model => {
@@ -132,7 +148,7 @@ export class RevealRouter {
     const referer = req.header('Referer');
 
     const data = {
-      resource_path: this.resource_directory,
+      resource_path: this.resource_path,
       label,
       referer,
     };
@@ -152,7 +168,7 @@ export class RevealRouter {
     try {
       const data = {
         config_path: this.config_path,
-        resource_path: this.resource_directory,
+        resource_path: this.resource_path,
         label,
         query: req.query,
       };
@@ -161,7 +177,7 @@ export class RevealRouter {
         res.status(model.code).send(model.message);
         return;
       }
-      res.set({date: new Date(model.parameters.mtime)});
+      res.set({date: new Date(model.parameters.times.mtime)});
       res.render("./md.ejs", model);
     } catch(err) {
       console.error(err);
@@ -175,7 +191,7 @@ export class RevealRouter {
 
     try {
       const data = {
-        resource_path: this.resource_directory,
+        resource_path: this.resource_path,
         id,
       };
       const model = GetImgModel.from(data);

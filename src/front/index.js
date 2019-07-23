@@ -1,6 +1,6 @@
 const { Elm } = require('./elm/Index.elm');
 
-var app = Elm.Main.init({
+var app = Elm.Index.init({
   node: document.getElementById('elm'),
   flags: flags,
 });

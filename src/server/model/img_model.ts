@@ -9,7 +9,7 @@ export class GetImgModel {
     if (typeof data.id === "undefined") {
       return HTMLCodeModel.from(400);
     }
-    const img = path.join(process.cwd(), data.resource_path, "..", img_path, data.id);
+    const img = path.join(data.resource_path, img_path, data.id);
     if (! fs.existsSync(img)) {
       return HTMLCodeModel.from(404);
     }
