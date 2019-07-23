@@ -8,6 +8,7 @@ import {
   md_extname,
   yaml_extname,
   css_extname,
+  md_path,
   Times,
   times_from,
 } from "./utils";
@@ -44,8 +45,8 @@ export interface RequiredByRevealjsParameters {
 
 export function generate_parameters({config_path, resource_path, label, query}: RequiredByRevealjsParameters): RevealParameters {
   let ret = {...generate_default_parameters()};
-  const md_file: string = path.join(resource_path, label + md_extname);
-  const yaml_file: string = path.join(resource_path, label + yaml_extname);
+  const md_file: string = path.join(resource_path, md_path, label + md_extname);
+  const yaml_file: string = path.join(resource_path, md_path, label + yaml_extname);
 
   try {
     ret.times = times_from(md_file);

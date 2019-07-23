@@ -28,7 +28,7 @@ export class RevealRouter {
   constructor(browser: puppeteer.Browser, args: ArgsParser) {
     this.port = args.port;
     this.sub_directory = ("/" + args.sub_directory + "/").replace(/^\/*/, "/").replace(/\/*$/, "/");
-    this.resource_path = path.join(args.resource_directory, md_path);
+    this.resource_path = args.resource_directory;
     this.config_path = args.config;
     const puppeteer_handle: PuppeteerHandle = {
       browser,

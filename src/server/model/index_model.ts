@@ -11,6 +11,7 @@ import {
   thumbnail_extname,
   view_path,
   label_key,
+  md_path,
   thumbnail_path,
   recursive_readdir,
   recursive_mkdir,
@@ -48,8 +49,9 @@ interface MDIndexItemParameters extends RequiredByRevealjsParameters {
 class MDIndexItem {
 
   static from(index_parameters: MDIndexModelParameters, filename: string): Promise<MDIndexItem> {
-    const label = filename.slice(index_parameters.resource_path.length + 1).slice(0, -(md_extname.length));
-    const path = `${view_path}?${label_key}=${label}`;
+    const md_resource_path = path.join(index_parameters.resource_path, md_path);
+    const label = filename.slice(md_resource_path.length + 1).slice(0, -(md_extname.length));
+    const ret_path = `${view_path}?${label_key}=${label}`;
 
     const parameters = generate_parameters({
       ...index_parameters,
@@ -59,7 +61,7 @@ class MDIndexItem {
 
     return extract_title(filename)
       .catch(() => label)
-      .then((title) => new MDIndexItem( label, path, title, times ));
+      .then((title) => new MDIndexItem( label, ret_path, title, times ));
   }
 
   private constructor(
@@ -77,7 +79,8 @@ interface MDIndexMeta {
 
 export class MDIndexModel {
   static from(parameters: MDIndexModelParameters): Promise<MDIndexModel> {
-    return recursive_readdir(parameters.resource_path)
+    const md_resource_path = path.join(parameters.resource_path, md_path);
+    return recursive_readdir(md_resource_path)
       .then((files: string[]) => {
         const links_promises = files
           .filter((filename: string) => path.extname(filename) === md_extname)
