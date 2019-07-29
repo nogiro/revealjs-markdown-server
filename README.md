@@ -17,6 +17,11 @@ Place `*.md` into `resource/md/` (or specified `<path>/md/` by `-d <path>`).
 
 ## Docker support
 ```
+$ docker pull nogiro/revealjs-markdown-server
+$ docker run -v /path/to/resource:/resource -p 3000:3000 nogiro/revealjs-markdown-server
+```
+or
+```
 $ git clone https://github.com/nogiro/revealjs-markdown-server.git
 $ cd revealjs-markdown-server
 $ docker build .
