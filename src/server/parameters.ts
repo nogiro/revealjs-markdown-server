@@ -99,7 +99,7 @@ function load_parameters(label: string, default_values: RevealParameters, params
   }
   if (typeof params["custom-css"] === "string") {
     try {
-      ret["custom-css"] = css.stringify(css.parse(params["custom-css"]));
+      ret["custom-css"] = css.stringify(css.parse(params["custom-css"]), {"compress": true});
     } catch (err) {
       console.error(`${label}: css error.`, err.message);
     }
